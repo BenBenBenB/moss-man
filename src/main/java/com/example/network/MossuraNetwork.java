@@ -33,6 +33,10 @@ public class MossuraNetwork {
 				if (project == null) {
 					return;
 				}
+				if (!canEdit(project, player)) {
+					player.sendMessage(Text.literal("You do not have permission to edit this project."), false);
+					return;
+				}
 				UUID assigneeId = resolvePlayerId(context.server(), payload.assigneeName());
 				ProjectService.createTicket(project, player.getUuid(), player.getName().getString(), payload.title(), payload.description(), payload.priority(), payload.type(), payload.state(), assigneeId, payload.assigneeName(), context.server().getOverworld().getTime());
 				markAndSync(context.server(), project);
@@ -44,6 +48,10 @@ public class MossuraNetwork {
 				ServerPlayerEntity player = context.player();
 				ProjectData project = getProject(context.server(), payload.projectId(), player);
 				if (project == null) {
+					return;
+				}
+				if (!canEdit(project, player)) {
+					player.sendMessage(Text.literal("You do not have permission to edit this project."), false);
 					return;
 				}
 				Ticket ticket = project.findTicket(payload.ticketId());
@@ -65,6 +73,10 @@ public class MossuraNetwork {
 				if (project == null) {
 					return;
 				}
+				if (!canEdit(project, player)) {
+					player.sendMessage(Text.literal("You do not have permission to edit this project."), false);
+					return;
+				}
 				Ticket ticket = project.findTicket(payload.ticketId());
 				if (ticket == null) {
 					player.sendMessage(Text.literal("Ticket not found."), false);
@@ -80,6 +92,10 @@ public class MossuraNetwork {
 				ServerPlayerEntity player = context.player();
 				ProjectData project = getProject(context.server(), payload.projectId(), player);
 				if (project == null) {
+					return;
+				}
+				if (!canEdit(project, player)) {
+					player.sendMessage(Text.literal("You do not have permission to edit this project."), false);
 					return;
 				}
 				Ticket ticket = project.findTicket(payload.ticketId());
@@ -104,6 +120,10 @@ public class MossuraNetwork {
 				if (project == null) {
 					return;
 				}
+				if (!canEdit(project, player)) {
+					player.sendMessage(Text.literal("You do not have permission to edit this project."), false);
+					return;
+				}
 				Ticket ticket = project.findTicket(payload.ticketId());
 				if (ticket == null) {
 					player.sendMessage(Text.literal("Ticket not found."), false);
@@ -126,6 +146,10 @@ public class MossuraNetwork {
 				if (project == null) {
 					return;
 				}
+				if (!canEdit(project, player)) {
+					player.sendMessage(Text.literal("You do not have permission to edit this project."), false);
+					return;
+				}
 				Ticket ticket = project.findTicket(payload.ticketId());
 				if (ticket == null) {
 					player.sendMessage(Text.literal("Ticket not found."), false);
@@ -143,6 +167,10 @@ public class MossuraNetwork {
 				if (project == null) {
 					return;
 				}
+				if (!canEdit(project, player)) {
+					player.sendMessage(Text.literal("You do not have permission to edit this project."), false);
+					return;
+				}
 				Ticket ticket = project.findTicket(payload.ticketId());
 				if (ticket == null) {
 					player.sendMessage(Text.literal("Ticket not found."), false);
@@ -158,6 +186,10 @@ public class MossuraNetwork {
 				ServerPlayerEntity player = context.player();
 				ProjectData project = getProject(context.server(), payload.projectId(), player);
 				if (project == null) {
+					return;
+				}
+				if (!canEdit(project, player)) {
+					player.sendMessage(Text.literal("You do not have permission to edit this project."), false);
 					return;
 				}
 				Ticket ticket = project.findTicket(payload.ticketId());
@@ -182,6 +214,10 @@ public class MossuraNetwork {
 				if (project == null) {
 					return;
 				}
+				if (!canManageMembers(project, player)) {
+					player.sendMessage(Text.literal("Only the project owner can update settings."), false);
+					return;
+				}
 				ProjectService.updateProjectSettings(project, payload.name(), payload.statuses(), payload.ticketTypes());
 				markAndSync(context.server(), project);
 			});
@@ -192,6 +228,10 @@ public class MossuraNetwork {
 				ServerPlayerEntity player = context.player();
 				ProjectData project = getProject(context.server(), payload.projectId(), player);
 				if (project == null) {
+					return;
+				}
+				if (!canManageMembers(project, player)) {
+					player.sendMessage(Text.literal("Only the project owner can manage members."), false);
 					return;
 				}
 				ServerPlayerEntity target = context.server().getPlayerManager().getPlayer(payload.memberName());
@@ -209,6 +249,10 @@ public class MossuraNetwork {
 				ServerPlayerEntity player = context.player();
 				ProjectData project = getProject(context.server(), payload.projectId(), player);
 				if (project == null) {
+					return;
+				}
+				if (!canManageMembers(project, player)) {
+					player.sendMessage(Text.literal("Only the project owner can manage members."), false);
 					return;
 				}
 				UUID memberId = project.findMemberIdByName(payload.memberName());
@@ -257,5 +301,19 @@ public class MossuraNetwork {
 		}
 		ServerPlayerEntity target = server.getPlayerManager().getPlayer(assigneeName);
 		return target == null ? null : target.getUuid();
+	}
+
+	private static boolean canEdit(ProjectData project, ServerPlayerEntity player) {
+		if (project == null || player == null) {
+			return false;
+		}
+		return project.getOwnerId().equals(player.getUuid()) || project.getMembers().containsKey(player.getUuid());
+	}
+
+	private static boolean canManageMembers(ProjectData project, ServerPlayerEntity player) {
+		if (project == null || player == null) {
+			return false;
+		}
+		return project.getOwnerId().equals(player.getUuid());
 	}
 }

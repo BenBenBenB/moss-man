@@ -4,6 +4,7 @@ import com.example.client.ui.McefBrowserView;
 import com.example.client.ui.MossuraUiActionHandler;
 import com.example.client.ui.MossuraUiBridge;
 import com.example.client.ui.MossuraUiRoutes;
+import com.example.client.ui.MossuraUiRefreshable;
 import com.google.gson.JsonObject;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
@@ -15,7 +16,7 @@ import net.minecraft.screen.ScreenHandler;
 import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 
-public abstract class MossuraMcefHandledScreen<T extends ScreenHandler> extends HandledScreen<T> implements MossuraUiActionHandler {
+public abstract class MossuraMcefHandledScreen<T extends ScreenHandler> extends HandledScreen<T> implements MossuraUiActionHandler, MossuraUiRefreshable {
 	private static final int MAX_BROWSER_WIDTH = 560;
 	private static final int MAX_BROWSER_HEIGHT = 360;
 	private static final int MIN_BROWSER_WIDTH = 240;
@@ -32,6 +33,11 @@ public abstract class MossuraMcefHandledScreen<T extends ScreenHandler> extends 
 
 	protected void pushState() {
 		browserView.setState(buildState());
+	}
+
+	@Override
+	public void refreshUiState() {
+		pushState();
 	}
 
 	@Override
@@ -54,7 +60,6 @@ public abstract class MossuraMcefHandledScreen<T extends ScreenHandler> extends 
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-		renderBackground(context, mouseX, mouseY, delta);
 		drawFrame(context);
 		if (browserView.isReady()) {
 			browserView.render(context);

@@ -7,6 +7,8 @@ import com.example.tickets.Ticket;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import java.util.Map;
+import java.util.UUID;
+import net.minecraft.client.MinecraftClient;
 
 public final class MossuraUiState {
 	private MossuraUiState() {
@@ -20,31 +22,61 @@ public final class MossuraUiState {
 	}
 
 	public static JsonObject projectState(ProjectData project) {
-		return buildState("project", project, null, null);
+		JsonObject root = buildState("project", project, null, null);
+		applyPermissions(root, project);
+		return root;
 	}
 
 	public static JsonObject screenState(String screen, ProjectData project) {
-		return buildState(screen, project, null, null);
+		JsonObject root = buildState(screen, project, null, null);
+		applyPermissions(root, project);
+		return root;
 	}
 
 	public static JsonObject ticketState(ProjectData project, Ticket ticket) {
-		return buildState("ticket", project, ticket, null);
+		JsonObject root = buildState("ticket", project, ticket, null);
+		applyPermissions(root, project);
+		return root;
 	}
 
 	public static JsonObject ticketEditorState(ProjectData project, Ticket ticket) {
-		return buildState(ticket == null ? "ticket-new" : "ticket-edit", project, ticket, null);
+		JsonObject root = buildState(ticket == null ? "ticket-new" : "ticket-edit", project, ticket, null);
+		applyPermissions(root, project);
+		return root;
 	}
 
 	public static JsonObject projectSettingsState(ProjectData project) {
-		return buildState("settings", project, null, null);
+		JsonObject root = buildState("settings", project, null, null);
+		applyPermissions(root, project);
+		return root;
 	}
 
 	public static JsonObject ticketCommentState(ProjectData project, Ticket ticket) {
-		return buildState("ticket-comment", project, ticket, null);
+		JsonObject root = buildState("ticket-comment", project, ticket, null);
+		applyPermissions(root, project);
+		return root;
 	}
 
 	public static JsonObject subtaskState(ProjectData project, Ticket ticket, Subtask subtask, String screen) {
-		return buildState(screen, project, ticket, subtask);
+		JsonObject root = buildState(screen, project, ticket, subtask);
+		applyPermissions(root, project);
+		return root;
+	}
+
+	public static void applyPermissions(JsonObject root, ProjectData project) {
+		if (root == null || project == null) {
+			return;
+		}
+		MinecraftClient client = MinecraftClient.getInstance();
+		if (client == null || client.player == null) {
+			return;
+		}
+		UUID playerId = client.player.getUuid();
+		boolean isOwner = playerId.equals(project.getOwnerId());
+		boolean isMember = project.getMembers().containsKey(playerId);
+		root.addProperty("isOwner", isOwner);
+		root.addProperty("canEdit", isOwner || isMember);
+		root.addProperty("playerName", client.player.getName().getString());
 	}
 
 	private static JsonObject buildState(String screen, ProjectData project, Ticket ticket, Subtask subtask) {

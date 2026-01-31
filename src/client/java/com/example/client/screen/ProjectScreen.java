@@ -6,6 +6,7 @@ import com.example.network.MossuraPayloads;
 import com.example.project.ProjectData;
 import com.example.screen.ProjectScreenHandler;
 import com.example.tickets.TicketPriority;
+import com.example.tickets.Ticket;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
 import java.util.UUID;
@@ -17,6 +18,7 @@ import net.minecraft.text.Text;
 
 public class ProjectScreen extends MossuraMcefHandledScreen<ProjectScreenHandler> {
 	private ProjectData project;
+	private PendingSubtasks pendingSubtasks;
 
 	public ProjectScreen(ProjectScreenHandler handler, PlayerInventory inventory, Text title) {
 		super(handler, inventory, title, "project/" + handler.getProjectId());
@@ -29,6 +31,7 @@ public class ProjectScreen extends MossuraMcefHandledScreen<ProjectScreenHandler
 	public void applyProjectSync(ProjectData project) {
 		this.project = project;
 		ClientProjectCache.put(project);
+		flushPendingSubtasks(project);
 		pushState();
 	}
 
@@ -66,7 +69,45 @@ public class ProjectScreen extends MossuraMcefHandledScreen<ProjectScreenHandler
 		if ("update-project-settings".equals(action)) {
 			return handleUpdateSettings(payload);
 		}
+		if ("open-ticket".equals(action)) {
+			return handleOpenTicket(payload);
+		}
+		if ("add-member".equals(action)) {
+			return handleAddMember(payload);
+		}
+		if ("remove-member".equals(action)) {
+			return handleRemoveMember(payload);
+		}
 		return false;
+	}
+
+	private boolean handleOpenTicket(JsonObject payload) {
+		UUID targetId = readUuid(payload, "ticketId", null);
+		if (targetId == null || client == null) {
+			return false;
+		}
+		client.setScreen(new TicketViewerScreen(this, targetId));
+		return true;
+	}
+
+	private boolean handleAddMember(JsonObject payload) {
+		String memberName = readString(payload, "memberName", "").trim();
+		if (memberName.isEmpty()) {
+			return false;
+		}
+		ClientPlayNetworking.send(new MossuraPayloads.AddProjectMemberPayload(handler.getProjectId(), memberName));
+		ClientPlayNetworking.send(new MossuraPayloads.RequestProjectSyncPayload(handler.getProjectId()));
+		return true;
+	}
+
+	private boolean handleRemoveMember(JsonObject payload) {
+		String memberName = readString(payload, "memberName", "").trim();
+		if (memberName.isEmpty()) {
+			return false;
+		}
+		ClientPlayNetworking.send(new MossuraPayloads.RemoveProjectMemberPayload(handler.getProjectId(), memberName));
+		ClientPlayNetworking.send(new MossuraPayloads.RequestProjectSyncPayload(handler.getProjectId()));
+		return true;
 	}
 
 	private boolean handleCreateTicket(JsonObject payload) {
@@ -94,6 +135,10 @@ public class ProjectScreen extends MossuraMcefHandledScreen<ProjectScreenHandler
 		String assigneeName = readString(payload, "assigneeName", "");
 		ClientPlayNetworking.send(new MossuraPayloads.CreateTicketPayload(handler.getProjectId(), title, description, type, state, priority, assigneeName));
 		ClientPlayNetworking.send(new MossuraPayloads.RequestProjectSyncPayload(handler.getProjectId()));
+		List<SubtaskSpec> subtasks = readSubtasks(payload);
+		if (!subtasks.isEmpty()) {
+			pendingSubtasks = new PendingSubtasks(title, description, subtasks);
+		}
 		return true;
 	}
 
@@ -138,5 +183,93 @@ public class ProjectScreen extends MossuraMcefHandledScreen<ProjectScreenHandler
 			return new ArrayList<>(fallback);
 		}
 		return values;
+	}
+
+	private static List<SubtaskSpec> readSubtasks(JsonObject payload) {
+		List<SubtaskSpec> subtasks = new ArrayList<>();
+		if (!payload.has("subtasks") || !payload.get("subtasks").isJsonArray()) {
+			return subtasks;
+		}
+		payload.getAsJsonArray("subtasks").forEach(element -> {
+			if (!element.isJsonObject()) {
+				return;
+			}
+			JsonObject obj = element.getAsJsonObject();
+			String name = readString(obj, "name", "").trim();
+			if (name.isEmpty()) {
+				return;
+			}
+			String description = readString(obj, "description", "");
+			subtasks.add(new SubtaskSpec(name, description));
+		});
+		return subtasks;
+	}
+
+	private static UUID readUuid(JsonObject payload, String key, UUID fallback) {
+		if (payload.has(key) && payload.get(key).isJsonPrimitive()) {
+			try {
+				return UUID.fromString(payload.get(key).getAsString());
+			} catch (IllegalArgumentException ignored) {
+				return fallback;
+			}
+		}
+		return fallback;
+	}
+
+	private void flushPendingSubtasks(ProjectData project) {
+		if (pendingSubtasks == null || project == null) {
+			return;
+		}
+		long cutoff = pendingSubtasks.requestedAt - 10000L;
+		Ticket candidate = null;
+		for (Ticket ticket : project.getTickets()) {
+			if (ticket.isDeleted()) {
+				continue;
+			}
+			if (!ticket.getTitle().equals(pendingSubtasks.title)) {
+				continue;
+			}
+			if (!ticket.getDescription().equals(pendingSubtasks.description)) {
+				continue;
+			}
+			if (ticket.getCreatedAt() < cutoff) {
+				continue;
+			}
+			if (candidate == null || ticket.getCreatedAt() > candidate.getCreatedAt()) {
+				candidate = ticket;
+			}
+		}
+		if (candidate == null) {
+			return;
+		}
+		for (SubtaskSpec subtask : pendingSubtasks.subtasks) {
+			ClientPlayNetworking.send(new MossuraPayloads.AddSubtaskPayload(project.getId(), candidate.getId(), subtask.name, subtask.description));
+		}
+		ClientPlayNetworking.send(new MossuraPayloads.RequestProjectSyncPayload(project.getId()));
+		pendingSubtasks = null;
+	}
+
+	private static class SubtaskSpec {
+		private final String name;
+		private final String description;
+
+		private SubtaskSpec(String name, String description) {
+			this.name = name;
+			this.description = description;
+		}
+	}
+
+	private static class PendingSubtasks {
+		private final String title;
+		private final String description;
+		private final List<SubtaskSpec> subtasks;
+		private final long requestedAt;
+
+		private PendingSubtasks(String title, String description, List<SubtaskSpec> subtasks) {
+			this.title = title;
+			this.description = description;
+			this.subtasks = subtasks;
+			this.requestedAt = System.currentTimeMillis();
+		}
 	}
 }

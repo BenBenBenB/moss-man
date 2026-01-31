@@ -5,6 +5,7 @@ import com.example.client.screen.ProjectScreen;
 import com.example.client.state.ClientProjectCache;
 import com.example.client.ui.MossuraScheme;
 import com.example.client.ui.MossuraUiBridge;
+import com.example.client.ui.MossuraUiRefreshable;
 import com.example.network.MossuraPayloads;
 import com.example.project.ProjectData;
 import com.example.registry.MossuraScreens;
@@ -21,6 +22,8 @@ public class MossuraClient implements ClientModInitializer {
 				ClientProjectCache.put(project);
 				if (context.client().currentScreen instanceof ProjectScreen projectScreen && projectScreen.getProjectId().equals(payload.projectId())) {
 					projectScreen.applyProjectSync(project);
+				} else if (context.client().currentScreen instanceof MossuraUiRefreshable refreshable) {
+					refreshable.refreshUiState();
 				}
 			});
 		});
