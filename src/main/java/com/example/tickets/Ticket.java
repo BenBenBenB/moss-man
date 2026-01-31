@@ -22,6 +22,7 @@ public class Ticket {
 	private UUID assigneeId;
 	private String assigneeName;
 	private final long createdAt;
+	private boolean deleted;
 	private final List<Subtask> subtasks = new ArrayList<>();
 	private final List<Comment> comments = new ArrayList<>();
 	private final List<HistoryEntry> history = new ArrayList<>();
@@ -121,6 +122,14 @@ public class Ticket {
 		return createdAt;
 	}
 
+	public boolean isDeleted() {
+		return deleted;
+	}
+
+	public void setDeleted(boolean deleted) {
+		this.deleted = deleted;
+	}
+
 	public List<Subtask> getSubtasks() {
 		return Collections.unmodifiableList(subtasks);
 	}
@@ -176,6 +185,9 @@ public class Ticket {
 			nbt.putString("assigneeName", assigneeName);
 		}
 		nbt.putLong("createdAt", createdAt);
+		if (deleted) {
+			nbt.putBoolean("deleted", true);
+		}
 		NbtList subtaskList = new NbtList();
 		for (Subtask subtask : subtasks) {
 			subtaskList.add(subtask.toNbt());
@@ -216,6 +228,7 @@ public class Ticket {
 		String assigneeName = nbt.contains("assigneeName") ? nbt.getString("assigneeName", "") : null;
 		long createdAt = nbt.getLong("createdAt", 0L);
 		Ticket ticket = new Ticket(id, number, creatorId, creatorName, title, description, priority, type, state, assigneeId, assigneeName, createdAt);
+		ticket.deleted = nbt.getBoolean("deleted", false);
 		NbtList subtaskList = nbt.getListOrEmpty("subtasks");
 		for (int i = 0; i < subtaskList.size(); i++) {
 			ticket.subtasks.add(Subtask.fromNbt(subtaskList.getCompoundOrEmpty(i)));

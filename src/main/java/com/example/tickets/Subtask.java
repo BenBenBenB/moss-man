@@ -15,6 +15,7 @@ public class Subtask {
 	private String name;
 	private String description;
 	private final long createdAt;
+	private boolean completed;
 	private final List<Comment> comments = new ArrayList<>();
 
 	public Subtask(UUID id, UUID creatorId, String creatorName, String name, String description, long createdAt) {
@@ -62,6 +63,14 @@ public class Subtask {
 		return createdAt;
 	}
 
+	public boolean isCompleted() {
+		return completed;
+	}
+
+	public void setCompleted(boolean completed) {
+		this.completed = completed;
+	}
+
 	public List<Comment> getComments() {
 		return Collections.unmodifiableList(comments);
 	}
@@ -78,6 +87,9 @@ public class Subtask {
 		nbt.putString("name", name);
 		nbt.putString("description", description);
 		nbt.putLong("createdAt", createdAt);
+		if (completed) {
+			nbt.putBoolean("completed", true);
+		}
 		NbtList commentList = new NbtList();
 		for (Comment comment : comments) {
 			commentList.add(comment.toNbt());
@@ -94,6 +106,7 @@ public class Subtask {
 		String description = nbt.getString("description", "");
 		long createdAt = nbt.getLong("createdAt", 0L);
 		Subtask subtask = new Subtask(id, creatorId, creatorName, name, description, createdAt);
+		subtask.completed = nbt.getBoolean("completed", false);
 		NbtList comments = nbt.getListOrEmpty("comments");
 		for (int i = 0; i < comments.size(); i++) {
 			subtask.comments.add(Comment.fromNbt(comments.getCompoundOrEmpty(i)));

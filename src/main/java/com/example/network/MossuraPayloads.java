@@ -19,12 +19,16 @@ public final class MossuraPayloads {
 	public static void register() {
 		PayloadTypeRegistry.playC2S().register(CreateTicketPayload.ID, CreateTicketPayload.CODEC);
 		PayloadTypeRegistry.playC2S().register(UpdateTicketPayload.ID, UpdateTicketPayload.CODEC);
+		PayloadTypeRegistry.playC2S().register(DeleteTicketPayload.ID, DeleteTicketPayload.CODEC);
+		PayloadTypeRegistry.playC2S().register(UpdateSubtaskPayload.ID, UpdateSubtaskPayload.CODEC);
+		PayloadTypeRegistry.playC2S().register(SetSubtaskCompletePayload.ID, SetSubtaskCompletePayload.CODEC);
 		PayloadTypeRegistry.playC2S().register(AddTicketCommentPayload.ID, AddTicketCommentPayload.CODEC);
 		PayloadTypeRegistry.playC2S().register(AddSubtaskPayload.ID, AddSubtaskPayload.CODEC);
 		PayloadTypeRegistry.playC2S().register(AddSubtaskCommentPayload.ID, AddSubtaskCommentPayload.CODEC);
 		PayloadTypeRegistry.playC2S().register(UpdateProjectSettingsPayload.ID, UpdateProjectSettingsPayload.CODEC);
 		PayloadTypeRegistry.playC2S().register(AddProjectMemberPayload.ID, AddProjectMemberPayload.CODEC);
 		PayloadTypeRegistry.playC2S().register(RemoveProjectMemberPayload.ID, RemoveProjectMemberPayload.CODEC);
+		PayloadTypeRegistry.playC2S().register(RequestProjectSyncPayload.ID, RequestProjectSyncPayload.CODEC);
 		PayloadTypeRegistry.playS2C().register(ProjectSyncPayload.ID, ProjectSyncPayload.CODEC);
 	}
 
@@ -122,6 +126,73 @@ public final class MossuraPayloads {
 			} else {
 				buf.writeBoolean(false);
 			}
+		}
+	}
+
+	public record DeleteTicketPayload(UUID projectId, UUID ticketId) implements CustomPayload {
+		public static final Id<DeleteTicketPayload> ID = new Id<>(Identifier.of(Mossura.MOD_ID, "delete_ticket"));
+		public static final PacketCodec<RegistryByteBuf, DeleteTicketPayload> CODEC = PacketCodec.ofStatic(DeleteTicketPayload::write, DeleteTicketPayload::read);
+
+		@Override
+		public Id<? extends CustomPayload> getId() {
+			return ID;
+		}
+
+		private static DeleteTicketPayload read(RegistryByteBuf buf) {
+			return new DeleteTicketPayload(buf.readUuid(), buf.readUuid());
+		}
+
+		private static void write(RegistryByteBuf buf, DeleteTicketPayload payload) {
+			buf.writeUuid(payload.projectId);
+			buf.writeUuid(payload.ticketId);
+		}
+	}
+
+	public record UpdateSubtaskPayload(UUID projectId, UUID ticketId, UUID subtaskId, String name, String description) implements CustomPayload {
+		public static final Id<UpdateSubtaskPayload> ID = new Id<>(Identifier.of(Mossura.MOD_ID, "update_subtask"));
+		public static final PacketCodec<RegistryByteBuf, UpdateSubtaskPayload> CODEC = PacketCodec.ofStatic(UpdateSubtaskPayload::write, UpdateSubtaskPayload::read);
+
+		@Override
+		public Id<? extends CustomPayload> getId() {
+			return ID;
+		}
+
+		private static UpdateSubtaskPayload read(RegistryByteBuf buf) {
+			UUID projectId = buf.readUuid();
+			UUID ticketId = buf.readUuid();
+			UUID subtaskId = buf.readUuid();
+			String name = buf.readString(256);
+			String description = buf.readString(2048);
+			return new UpdateSubtaskPayload(projectId, ticketId, subtaskId, name, description);
+		}
+
+		private static void write(RegistryByteBuf buf, UpdateSubtaskPayload payload) {
+			buf.writeUuid(payload.projectId);
+			buf.writeUuid(payload.ticketId);
+			buf.writeUuid(payload.subtaskId);
+			buf.writeString(payload.name, 256);
+			buf.writeString(payload.description, 2048);
+		}
+	}
+
+	public record SetSubtaskCompletePayload(UUID projectId, UUID ticketId, UUID subtaskId, boolean completed) implements CustomPayload {
+		public static final Id<SetSubtaskCompletePayload> ID = new Id<>(Identifier.of(Mossura.MOD_ID, "set_subtask_complete"));
+		public static final PacketCodec<RegistryByteBuf, SetSubtaskCompletePayload> CODEC = PacketCodec.ofStatic(SetSubtaskCompletePayload::write, SetSubtaskCompletePayload::read);
+
+		@Override
+		public Id<? extends CustomPayload> getId() {
+			return ID;
+		}
+
+		private static SetSubtaskCompletePayload read(RegistryByteBuf buf) {
+			return new SetSubtaskCompletePayload(buf.readUuid(), buf.readUuid(), buf.readUuid(), buf.readBoolean());
+		}
+
+		private static void write(RegistryByteBuf buf, SetSubtaskCompletePayload payload) {
+			buf.writeUuid(payload.projectId);
+			buf.writeUuid(payload.ticketId);
+			buf.writeUuid(payload.subtaskId);
+			buf.writeBoolean(payload.completed);
 		}
 	}
 
@@ -247,6 +318,24 @@ public final class MossuraPayloads {
 		private static void write(RegistryByteBuf buf, RemoveProjectMemberPayload payload) {
 			buf.writeUuid(payload.projectId);
 			buf.writeString(payload.memberName, 64);
+		}
+	}
+
+	public record RequestProjectSyncPayload(UUID projectId) implements CustomPayload {
+		public static final Id<RequestProjectSyncPayload> ID = new Id<>(Identifier.of(Mossura.MOD_ID, "request_project_sync"));
+		public static final PacketCodec<RegistryByteBuf, RequestProjectSyncPayload> CODEC = PacketCodec.ofStatic(RequestProjectSyncPayload::write, RequestProjectSyncPayload::read);
+
+		@Override
+		public Id<? extends CustomPayload> getId() {
+			return ID;
+		}
+
+		private static RequestProjectSyncPayload read(RegistryByteBuf buf) {
+			return new RequestProjectSyncPayload(buf.readUuid());
+		}
+
+		private static void write(RegistryByteBuf buf, RequestProjectSyncPayload payload) {
+			buf.writeUuid(payload.projectId);
 		}
 	}
 

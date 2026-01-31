@@ -6,6 +6,7 @@ import com.example.project.ProjectData;
 import com.example.tickets.Comment;
 import com.example.tickets.Subtask;
 import com.example.tickets.Ticket;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -13,24 +14,23 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.client.input.KeyInput;
+import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 import net.minecraft.client.gui.Click;
+import org.lwjgl.glfw.GLFW;
 
 public class TicketViewerScreen extends Screen {
 	private final ProjectScreen parent;
 	private final UUID ticketId;
 	private Ticket ticket;
-	private TextFieldWidget commentField;
-	private TextFieldWidget subtaskNameField;
-	private TextFieldWidget subtaskDescField;
-	private TextFieldWidget subtaskCommentField;
-	private ButtonWidget addCommentButton;
-	private ButtonWidget addSubtaskButton;
-	private ButtonWidget addSubtaskCommentButton;
 	private ButtonWidget editButton;
 	private ButtonWidget backButton;
-	private UUID selectedSubtaskId;
+	private ButtonWidget deleteButton;
+	private ButtonWidget addCommentButton;
+	private ButtonWidget addSubtaskButton;
+	private final List<SubtaskHitbox> subtaskHitboxes = new ArrayList<>();
+	private static final int LINE_HEIGHT = 10;
 
 	public TicketViewerScreen(ProjectScreen parent, UUID ticketId) {
 		super(Text.literal("Ticket Viewer"));
@@ -42,8 +42,9 @@ public class TicketViewerScreen extends Screen {
 	protected void init() {
 		super.init();
 		refreshTicket();
-		int left = this.width / 2 - 120;
-		int top = 24;
+		Layout layout = layout();
+		int left = layout.left;
+		int top = 20;
 		backButton = ButtonWidget.builder(Text.literal("Back"), button -> returnToParent())
 				.position(left, top)
 				.size(50, 16)
@@ -52,71 +53,104 @@ public class TicketViewerScreen extends Screen {
 				.position(left + 56, top)
 				.size(50, 16)
 				.build();
-		addDrawableChild(backButton);
-		addDrawableChild(editButton);
-
-		commentField = new TextFieldWidget(textRenderer, left, top + 160, 180, 16, Text.literal("Comment"));
-		addDrawableChild(commentField);
-		addCommentButton = ButtonWidget.builder(Text.literal("Add Comment"), button -> sendComment())
-				.position(left + 186, top + 160)
+		deleteButton = ButtonWidget.builder(Text.literal("Delete"), button -> deleteTicket())
+				.position(left + 112, top)
+				.size(60, 16)
+				.build();
+		addCommentButton = ButtonWidget.builder(Text.literal("Add Comment"), button -> openAddComment())
+				.position(left, top + 20)
 				.size(90, 16)
 				.build();
+		addSubtaskButton = ButtonWidget.builder(Text.literal("Add Subtask"), button -> openAddSubtask())
+				.position(left + 96, top + 20)
+				.size(90, 16)
+				.build();
+		addDrawableChild(backButton);
+		addDrawableChild(editButton);
+		addDrawableChild(deleteButton);
 		addDrawableChild(addCommentButton);
-
-		subtaskNameField = new TextFieldWidget(textRenderer, left, top + 86, 120, 16, Text.literal("Subtask name"));
-		subtaskDescField = new TextFieldWidget(textRenderer, left + 124, top + 86, 150, 16, Text.literal("Subtask description"));
-		addDrawableChild(subtaskNameField);
-		addDrawableChild(subtaskDescField);
-		addSubtaskButton = ButtonWidget.builder(Text.literal("Add Subtask"), button -> sendSubtask())
-				.position(left + 278, top + 86)
-				.size(80, 16)
-				.build();
 		addDrawableChild(addSubtaskButton);
-
-		subtaskCommentField = new TextFieldWidget(textRenderer, left, top + 130, 180, 16, Text.literal("Subtask comment"));
-		addDrawableChild(subtaskCommentField);
-		addSubtaskCommentButton = ButtonWidget.builder(Text.literal("Add Subtask Comment"), button -> sendSubtaskComment())
-				.position(left + 186, top + 130)
-				.size(120, 16)
-				.build();
-		addDrawableChild(addSubtaskCommentButton);
 	}
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float delta) {
 		renderBackground(context, mouseX, mouseY, delta);
 		refreshTicket();
-		int left = this.width / 2 - 120;
-		int y = 48;
+		Layout layout = layout();
+		int left = layout.left;
+		int y = layout.contentStartY;
+		subtaskHitboxes.clear();
 		if (ticket != null) {
-			context.drawText(textRenderer, Text.literal("#" + ticket.getNumber() + " " + ticket.getTitle()), left, y, 0xFFFFFF, false);
+			context.drawText(textRenderer, Text.literal("#" + ticket.getNumber() + " " + ticket.getTitle()), left, y, 0xFFFFFFFF, false);
 			y += 12;
-			context.drawText(textRenderer, Text.literal("Type: " + ticket.getType() + " | State: " + ticket.getState()), left, y, 0xCCCCCC, false);
+			context.drawText(textRenderer, Text.literal("Type: " + ticket.getType() + " | State: " + ticket.getState()), left, y, 0xFFCCCCCC, false);
 			y += 12;
-			context.drawText(textRenderer, Text.literal("Priority: " + ticket.getPriority()), left, y, 0xCCCCCC, false);
+			context.drawText(textRenderer, Text.literal("Priority: " + ticket.getPriority()), left, y, 0xFFCCCCCC, false);
 			y += 12;
 			String assignee = ticket.getAssigneeName() == null ? "Unassigned" : ticket.getAssigneeName();
-			context.drawText(textRenderer, Text.literal("Assignee: " + assignee), left, y, 0xCCCCCC, false);
-			y += 16;
-			context.drawText(textRenderer, Text.literal(ticket.getDescription()), left, y, 0xAAAAAA, false);
-			y += 20;
-			context.drawText(textRenderer, Text.literal("Subtasks:"), left, y, 0xE0E0E0, false);
+			context.drawText(textRenderer, Text.literal("Assignee: " + assignee), left, y, 0xFFCCCCCC, false);
+			y += 14;
+			context.drawText(textRenderer, Text.literal("Description:"), left, y, 0xFFE0E0E0, false);
 			y += 12;
-			for (Subtask subtask : ticket.getSubtasks()) {
-				int color = subtask.getId().equals(selectedSubtaskId) ? 0x00FFAA : 0xFFFFFF;
-				context.drawText(textRenderer, Text.literal("- " + subtask.getName() + " (" + subtask.getCreatorName() + ")"), left + 4, y, color, false);
-				y += 10;
-				if (y > 120) {
+			for (OrderedText line : textRenderer.wrapLines(Text.literal(ticket.getDescription()), layout.contentWidth)) {
+				context.drawText(textRenderer, line, left, y, 0xFFAAAAAA, false);
+				y += LINE_HEIGHT;
+				if (y > this.height - 60) {
 					break;
 				}
 			}
-			y = 120;
-			context.drawText(textRenderer, Text.literal("Comments:"), left, y, 0xE0E0E0, false);
+			y += 6;
+			context.drawText(textRenderer, Text.literal("Subtasks:"), left, y, 0xFFE0E0E0, false);
+			y += 12;
+			for (Subtask subtask : ticket.getSubtasks()) {
+				boolean completed = subtask.isCompleted();
+				String prefix = completed ? "[x] " : "[ ] ";
+				int color = completed ? 0xFF9AA0A6 : 0xFFFFFFFF;
+				context.drawText(textRenderer, Text.literal(prefix + subtask.getName() + " (" + subtask.getCreatorName() + ")"), left + 4, y, color, false);
+				subtaskHitboxes.add(new SubtaskHitbox(subtask.getId(), left, y, layout.contentWidth, LINE_HEIGHT));
+				y += LINE_HEIGHT;
+				if (!subtask.getDescription().isBlank()) {
+					for (OrderedText line : textRenderer.wrapLines(Text.literal(subtask.getDescription()), layout.contentWidth - 12)) {
+						context.drawText(textRenderer, line, left + 12, y, 0xFFAAAAAA, false);
+						y += LINE_HEIGHT;
+						if (y > this.height - 60) {
+							break;
+						}
+					}
+				}
+				if (!subtask.getComments().isEmpty()) {
+					for (Comment comment : subtask.getComments()) {
+						Text lineText = Text.literal(comment.getAuthorName() + ": " + comment.getMessage());
+						for (OrderedText line : textRenderer.wrapLines(lineText, layout.contentWidth - 12)) {
+							context.drawText(textRenderer, line, left + 12, y, 0xFFDDDDDD, false);
+							y += LINE_HEIGHT;
+							if (y > this.height - 60) {
+								break;
+							}
+						}
+						if (y > this.height - 60) {
+							break;
+						}
+					}
+				}
+				y += 4;
+				if (y > this.height - 60) {
+					break;
+				}
+			}
+			y += 6;
+			context.drawText(textRenderer, Text.literal("Comments:"), left, y, 0xFFE0E0E0, false);
 			y += 12;
 			for (Comment comment : ticket.getComments()) {
-				context.drawText(textRenderer, Text.literal(comment.getAuthorName() + ": " + comment.getMessage()), left + 4, y, 0xFFFFFF, false);
-				y += 10;
-				if (y > 150) {
+				Text lineText = Text.literal(comment.getAuthorName() + ": " + comment.getMessage());
+				for (OrderedText line : textRenderer.wrapLines(lineText, layout.contentWidth)) {
+					context.drawText(textRenderer, line, left + 4, y, 0xFFFFFFFF, false);
+					y += LINE_HEIGHT;
+					if (y > this.height - 30) {
+						break;
+					}
+				}
+				if (y > this.height - 30) {
 					break;
 				}
 			}
@@ -133,46 +167,87 @@ public class TicketViewerScreen extends Screen {
 	public boolean mouseClicked(Click click, boolean doubleClick) {
 		double mouseX = click.x();
 		double mouseY = click.y();
-		if (ticket != null) {
-			int left = this.width / 2 - 120;
-			int y = 72;
-			for (Subtask subtask : ticket.getSubtasks()) {
-				if (mouseX >= left && mouseX <= left + 200 && mouseY >= y && mouseY <= y + 10) {
-					selectedSubtaskId = subtask.getId();
-					return true;
-				}
-				y += 10;
-				if (y > 120) {
-					break;
+		if (!subtaskHitboxes.isEmpty()) {
+			for (SubtaskHitbox hitbox : subtaskHitboxes) {
+				if (hitbox.contains(mouseX, mouseY)) {
+					if (click.button() == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
+						openAddSubtaskComment(hitbox.subtaskId);
+						return true;
+					}
+					if (click.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+						if (doubleClick) {
+							openEditSubtask(hitbox.subtaskId);
+						} else {
+							toggleSubtaskComplete(hitbox.subtaskId);
+						}
+						return true;
+					}
 				}
 			}
 		}
 		return super.mouseClicked(click, doubleClick);
 	}
 
-	private void sendComment() {
-		if (ticket == null || commentField.getText().isBlank()) {
+	private void deleteTicket() {
+		if (ticket == null) {
 			return;
 		}
-		ClientPlayNetworking.send(new MossuraPayloads.AddTicketCommentPayload(parent.getProjectId(), ticket.getId(), commentField.getText()));
-		commentField.setText("");
+		ClientPlayNetworking.send(new MossuraPayloads.DeleteTicketPayload(parent.getProjectId(), ticket.getId()));
+		ClientPlayNetworking.send(new MossuraPayloads.RequestProjectSyncPayload(parent.getProjectId()));
+		returnToParent();
 	}
 
-	private void sendSubtask() {
-		if (ticket == null || subtaskNameField.getText().isBlank()) {
+	private void openAddComment() {
+		if (ticket == null) {
 			return;
 		}
-		ClientPlayNetworking.send(new MossuraPayloads.AddSubtaskPayload(parent.getProjectId(), ticket.getId(), subtaskNameField.getText(), subtaskDescField.getText()));
-		subtaskNameField.setText("");
-		subtaskDescField.setText("");
+		openChild(new TicketCommentScreen(this, parent.getProjectId(), ticket.getId()));
 	}
 
-	private void sendSubtaskComment() {
-		if (ticket == null || selectedSubtaskId == null || subtaskCommentField.getText().isBlank()) {
+	private void openAddSubtask() {
+		if (ticket == null) {
 			return;
 		}
-		ClientPlayNetworking.send(new MossuraPayloads.AddSubtaskCommentPayload(parent.getProjectId(), ticket.getId(), selectedSubtaskId, subtaskCommentField.getText()));
-		subtaskCommentField.setText("");
+		openChild(new SubtaskCreateScreen(this, parent.getProjectId(), ticket.getId()));
+	}
+
+	private void openAddSubtaskComment(UUID subtaskId) {
+		if (ticket == null || subtaskId == null) {
+			return;
+		}
+		openChild(new SubtaskCommentScreen(this, parent.getProjectId(), ticket.getId(), subtaskId));
+	}
+
+	private void openEditSubtask(UUID subtaskId) {
+		if (ticket == null || subtaskId == null) {
+			return;
+		}
+		Subtask subtask = ticket.findSubtask(subtaskId);
+		if (subtask == null) {
+			return;
+		}
+		SubtaskEditScreen screen = new SubtaskEditScreen(this, parent.getProjectId(), ticket.getId(), subtask);
+		openChild(screen);
+		screen.setInitialValues(subtask.getName(), subtask.getDescription());
+	}
+
+	private void toggleSubtaskComplete(UUID subtaskId) {
+		if (ticket == null || subtaskId == null) {
+			return;
+		}
+		Subtask subtask = ticket.findSubtask(subtaskId);
+		if (subtask == null) {
+			return;
+		}
+		boolean newState = !subtask.isCompleted();
+		ClientPlayNetworking.send(new MossuraPayloads.SetSubtaskCompletePayload(parent.getProjectId(), ticket.getId(), subtask.getId(), newState));
+		ClientPlayNetworking.send(new MossuraPayloads.RequestProjectSyncPayload(parent.getProjectId()));
+	}
+
+	private void openChild(Screen child) {
+		if (client != null) {
+			client.setScreen(child);
+		}
 	}
 
 	private void openEditor() {
@@ -194,5 +269,57 @@ public class TicketViewerScreen extends Screen {
 		if (latest != null) {
 			this.ticket = latest.findTicket(ticketId);
 		}
+	}
+
+	private Layout layout() {
+		int contentWidth = Math.min(340, this.width - 40);
+		int left = (this.width - contentWidth) / 2;
+		int contentStartY = 92;
+		return new Layout(left, contentWidth, contentStartY);
+	}
+
+	private int subtaskStartY(Layout layout, Ticket ticket) {
+		int y = layout.contentStartY;
+		y += 12; // title
+		y += 12; // type/state
+		y += 12; // priority
+		y += 14; // assignee
+		y += 12; // description label
+		y += textRenderer.wrapLines(Text.literal(ticket.getDescription()), layout.contentWidth).size() * LINE_HEIGHT;
+		y += 6; // gap
+		y += 12; // subtasks label
+		return y;
+	}
+
+	private record Layout(int left, int contentWidth, int contentStartY) {
+	}
+
+	private static class SubtaskHitbox {
+		private final UUID subtaskId;
+		private final double x;
+		private final double y;
+		private final double width;
+		private final double height;
+
+		private SubtaskHitbox(UUID subtaskId, double x, double y, double width, double height) {
+			this.subtaskId = subtaskId;
+			this.x = x;
+			this.y = y;
+			this.width = width;
+			this.height = height;
+		}
+
+		private boolean contains(double mouseX, double mouseY) {
+			return mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height;
+		}
+	}
+
+	@Override
+	public boolean keyPressed(KeyInput input) {
+		if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
+			returnToParent();
+			return true;
+		}
+		return super.keyPressed(input);
 	}
 }

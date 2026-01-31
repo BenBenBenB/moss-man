@@ -58,6 +58,67 @@ public class MossuraNetwork {
 			});
 		});
 
+		ServerPlayNetworking.registerGlobalReceiver(MossuraPayloads.DeleteTicketPayload.ID, (payload, context) -> {
+			context.server().execute(() -> {
+				ServerPlayerEntity player = context.player();
+				ProjectData project = getProject(context.server(), payload.projectId(), player);
+				if (project == null) {
+					return;
+				}
+				Ticket ticket = project.findTicket(payload.ticketId());
+				if (ticket == null) {
+					player.sendMessage(Text.literal("Ticket not found."), false);
+					return;
+				}
+				ProjectService.deleteTicket(project, ticket, player.getUuid(), player.getName().getString(), context.server().getOverworld().getTime());
+				markAndSync(context.server(), project);
+			});
+		});
+
+		ServerPlayNetworking.registerGlobalReceiver(MossuraPayloads.UpdateSubtaskPayload.ID, (payload, context) -> {
+			context.server().execute(() -> {
+				ServerPlayerEntity player = context.player();
+				ProjectData project = getProject(context.server(), payload.projectId(), player);
+				if (project == null) {
+					return;
+				}
+				Ticket ticket = project.findTicket(payload.ticketId());
+				if (ticket == null) {
+					player.sendMessage(Text.literal("Ticket not found."), false);
+					return;
+				}
+				Subtask subtask = ticket.findSubtask(payload.subtaskId());
+				if (subtask == null) {
+					player.sendMessage(Text.literal("Subtask not found."), false);
+					return;
+				}
+				ProjectService.updateSubtask(ticket, subtask, player.getUuid(), player.getName().getString(), payload.name(), payload.description(), context.server().getOverworld().getTime());
+				markAndSync(context.server(), project);
+			});
+		});
+
+		ServerPlayNetworking.registerGlobalReceiver(MossuraPayloads.SetSubtaskCompletePayload.ID, (payload, context) -> {
+			context.server().execute(() -> {
+				ServerPlayerEntity player = context.player();
+				ProjectData project = getProject(context.server(), payload.projectId(), player);
+				if (project == null) {
+					return;
+				}
+				Ticket ticket = project.findTicket(payload.ticketId());
+				if (ticket == null) {
+					player.sendMessage(Text.literal("Ticket not found."), false);
+					return;
+				}
+				Subtask subtask = ticket.findSubtask(payload.subtaskId());
+				if (subtask == null) {
+					player.sendMessage(Text.literal("Subtask not found."), false);
+					return;
+				}
+				ProjectService.setSubtaskCompleted(ticket, subtask, player.getUuid(), player.getName().getString(), payload.completed(), context.server().getOverworld().getTime());
+				markAndSync(context.server(), project);
+			});
+		});
+
 		ServerPlayNetworking.registerGlobalReceiver(MossuraPayloads.AddTicketCommentPayload.ID, (payload, context) -> {
 			context.server().execute(() -> {
 				ServerPlayerEntity player = context.player();
@@ -157,6 +218,18 @@ public class MossuraNetwork {
 				}
 				ProjectService.removeMember(project, memberId);
 				markAndSync(context.server(), project);
+			});
+		});
+
+		ServerPlayNetworking.registerGlobalReceiver(MossuraPayloads.RequestProjectSyncPayload.ID, (payload, context) -> {
+			context.server().execute(() -> {
+				ServerPlayerEntity player = context.player();
+				ProjectData project = getProject(context.server(), payload.projectId(), player);
+				if (project == null) {
+					return;
+				}
+				ProjectViewTracker.addViewer(project.getId(), player);
+				sendProjectSync(player, project);
 			});
 		});
 	}

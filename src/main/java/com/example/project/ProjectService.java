@@ -60,6 +60,29 @@ public class ProjectService {
 		return comment;
 	}
 
+	public static void updateSubtask(Ticket ticket, Subtask subtask, UUID actorId, String actorName, String name, String description, long timestamp) {
+		if (!Objects.equals(subtask.getName(), name)) {
+			String before = subtask.getName();
+			subtask.setName(name);
+			ticket.addHistory(HistoryEntry.create(actorId, actorName, "update", "subtask_name", before, name, "subtask", subtask.getId(), timestamp));
+		}
+		if (!Objects.equals(subtask.getDescription(), description)) {
+			String before = subtask.getDescription();
+			subtask.setDescription(description);
+			ticket.addHistory(HistoryEntry.create(actorId, actorName, "update", "subtask_description", before, description, "subtask", subtask.getId(), timestamp));
+		}
+	}
+
+	public static void setSubtaskCompleted(Ticket ticket, Subtask subtask, UUID actorId, String actorName, boolean completed, long timestamp) {
+		if (subtask.isCompleted() == completed) {
+			return;
+		}
+		String before = subtask.isCompleted() ? "complete" : "incomplete";
+		String after = completed ? "complete" : "incomplete";
+		subtask.setCompleted(completed);
+		ticket.addHistory(HistoryEntry.create(actorId, actorName, "update", "subtask_status", before, after, "subtask", subtask.getId(), timestamp));
+	}
+
 	public static void updateProjectSettings(ProjectData project, String name, List<String> statuses, List<String> ticketTypes) {
 		if (name != null && !name.isBlank()) {
 			project.setName(name);
@@ -78,6 +101,14 @@ public class ProjectService {
 
 	public static void removeMember(ProjectData project, UUID memberId) {
 		project.removeMember(memberId);
+	}
+
+	public static void deleteTicket(ProjectData project, Ticket ticket, UUID actorId, String actorName, long timestamp) {
+		if (ticket.isDeleted()) {
+			return;
+		}
+		ticket.setDeleted(true);
+		ticket.addHistory(HistoryEntry.create(actorId, actorName, "delete", "ticket", "", "deleted", "ticket", ticket.getId(), timestamp));
 	}
 
 	private static void applyFieldChange(String before, String after, String field, UUID actorId, String actorName, Ticket ticket, long timestamp, java.util.function.Consumer<String> setter) {
