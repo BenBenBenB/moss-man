@@ -16,10 +16,10 @@
 	"environment": "*",
 	"entrypoints": {
 		"main": [
-          "com.example.Mossura"
+          "com.notatyler.mossura.Mossura"
 		],
 		"client": [
-			"com.example.client.MossuraClient"
+			"com.notatyler.mossura.client.MossuraClient"
 		]
 	},
 	"depends": {
