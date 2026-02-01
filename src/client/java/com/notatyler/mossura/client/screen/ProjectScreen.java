@@ -67,6 +67,9 @@ public class ProjectScreen extends MossuraMcefHandledScreen<ProjectScreenHandler
 		if ("create-ticket".equals(action)) {
 			return handleCreateTicket(payload);
 		}
+		if ("update-ticket".equals(action)) {
+			return handleUpdateTicket(payload);
+		}
 		if ("update-project-settings".equals(action)) {
 			return handleUpdateSettings(payload);
 		}
@@ -78,6 +81,15 @@ public class ProjectScreen extends MossuraMcefHandledScreen<ProjectScreenHandler
 		}
 		if ("remove-member".equals(action)) {
 			return handleRemoveMember(payload);
+		}
+		if ("create-sprint".equals(action)) {
+			return handleCreateSprint(payload);
+		}
+		if ("update-sprint".equals(action)) {
+			return handleUpdateSprint(payload);
+		}
+		if ("add-ticket-comment".equals(action)) {
+			return handleAddTicketComment(payload);
 		}
 		return false;
 	}
@@ -141,7 +153,8 @@ public class ProjectScreen extends MossuraMcefHandledScreen<ProjectScreenHandler
 		String assigneeName = readString(payload, "assigneeName", "");
 		UUID sprintId = readUuid(payload, "sprintId", null);
 		List<String> labels = readStringList(payload, "labels", new ArrayList<>());
-		ClientPlayNetworking.send(new MossuraPayloads.CreateTicketPayload(handler.getProjectId(), title, description, type, state, priority, assigneeName, sprintId, labels));
+		List<String> assignees = assigneeName.isEmpty() ? new ArrayList<>() : java.util.Collections.singletonList(assigneeName);
+		ClientPlayNetworking.send(new MossuraPayloads.CreateTicketPayload(handler.getProjectId(), title, description, type, state, priority, assignees, sprintId, labels));
 		ClientPlayNetworking.send(new MossuraPayloads.RequestProjectSyncPayload(handler.getProjectId()));
 		List<SubtaskSpec> subtasks = readSubtasks(payload);
 		if (!subtasks.isEmpty()) {
@@ -164,6 +177,82 @@ public class ProjectScreen extends MossuraMcefHandledScreen<ProjectScreenHandler
 		List<String> statuses = readStringList(payload, "statuses", latest.getStatuses());
 		List<String> types = readStringList(payload, "ticketTypes", latest.getTicketTypes());
 		ClientPlayNetworking.send(new MossuraPayloads.UpdateProjectSettingsPayload(handler.getProjectId(), name, description, ticketPrefix, statuses, types));
+		ClientPlayNetworking.send(new MossuraPayloads.RequestProjectSyncPayload(handler.getProjectId()));
+		return true;
+	}
+
+	private boolean handleUpdateTicket(JsonObject payload) {
+		System.out.println("DEBUG: handleUpdateTicket called with payload: " + payload);
+		ProjectData latest = project;
+		if (latest == null) {
+			latest = ClientProjectCache.get(handler.getProjectId());
+		}
+		if (latest == null) {
+			System.out.println("DEBUG: Latest project data is null");
+			return false;
+		}
+		UUID ticketId = readUuid(payload, "ticketId", null);
+		if (ticketId == null) {
+			System.out.println("DEBUG: Ticket ID is null");
+			return false;
+		}
+		Ticket ticket = latest.findTicket(ticketId);
+		if (ticket == null) {
+			System.out.println("DEBUG: Ticket not found in local cache: " + ticketId);
+			return false;
+		}
+
+		String title = readString(payload, "title", ticket.getTitle());
+		String description = readString(payload, "description", ticket.getDescription());
+		String type = readString(payload, "type", ticket.getType());
+		String state = readString(payload, "state", ticket.getState());
+		String priorityValue = readString(payload, "priority", ticket.getPriority().name());
+		TicketPriority priority = TicketPriority.MEDIUM;
+		try { priority = TicketPriority.valueOf(priorityValue); } catch (Exception ignored) { priority = ticket.getPriority(); }
+		
+		List<String> assignees = readStringList(payload, "assigneeNames", ticket.getAssigneeNames());
+		// Fallback for singular assigneeName if present and list is empty key check
+		if (!payload.has("assigneeNames") && payload.has("assigneeName")) {
+			String name = readString(payload, "assigneeName", "");
+			if (!name.isEmpty()) assignees = java.util.Collections.singletonList(name);
+		}
+
+		UUID sprintId = readUuid(payload, "sprintId", ticket.getSprintId());
+		List<String> labels = readStringList(payload, "labels", ticket.getLabels());
+		
+		ClientPlayNetworking.send(new MossuraPayloads.UpdateTicketPayload(handler.getProjectId(), ticketId, title, description, type, state, priority, assignees, sprintId, labels));
+		ClientPlayNetworking.send(new MossuraPayloads.RequestProjectSyncPayload(handler.getProjectId()));
+		return true;
+	}
+
+	private boolean handleCreateSprint(JsonObject payload) {
+		String name = readString(payload, "name", "").trim();
+		if (name.isEmpty()) return false;
+		long start = payload.has("startTime") ? payload.get("startTime").getAsLong() : System.currentTimeMillis();
+		long end = payload.has("endTime") ? payload.get("endTime").getAsLong() : start + (14L * 24 * 60 * 60 * 1000);
+		ClientPlayNetworking.send(new MossuraPayloads.CreateSprintPayload(handler.getProjectId(), name, start, end));
+		ClientPlayNetworking.send(new MossuraPayloads.RequestProjectSyncPayload(handler.getProjectId()));
+		return true;
+	}
+
+	private boolean handleUpdateSprint(JsonObject payload) {
+		UUID sprintId = readUuid(payload, "sprintId", null);
+		if (sprintId == null) return false;
+		String name = readString(payload, "name", "");
+		long start = payload.get("startTime").getAsLong();
+		long end = payload.get("endTime").getAsLong();
+		com.notatyler.mossura.project.Sprint.Status status = com.notatyler.mossura.project.Sprint.Status.valueOf(readString(payload, "status", "PLANNED"));
+		ClientPlayNetworking.send(new MossuraPayloads.UpdateSprintPayload(handler.getProjectId(), sprintId, name, start, end, status));
+		ClientPlayNetworking.send(new MossuraPayloads.RequestProjectSyncPayload(handler.getProjectId()));
+		return true;
+	}
+
+	private boolean handleAddTicketComment(JsonObject payload) {
+		UUID ticketId = readUuid(payload, "ticketId", null);
+		if (ticketId == null) return false;
+		String message = readString(payload, "message", "").trim();
+		if (message.isEmpty()) return false;
+		ClientPlayNetworking.send(new MossuraPayloads.AddTicketCommentPayload(handler.getProjectId(), ticketId, message));
 		ClientPlayNetworking.send(new MossuraPayloads.RequestProjectSyncPayload(handler.getProjectId()));
 		return true;
 	}

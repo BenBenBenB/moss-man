@@ -18,11 +18,18 @@ public class ProjectService {
 	private ProjectService() {
 	}
 
-	public static Ticket createTicket(ProjectData project, UUID actorId, String actorName, String title, String description, TicketPriority priority, String type, String state, UUID assigneeId, String assigneeName, long timestamp) {
+	public static Ticket createTicket(MinecraftServer server, ProjectData project, UUID actorId, String actorName, String title, String description, TicketPriority priority, String type, String state, List<UUID> assigneeIds, List<String> assigneeNames, long timestamp) {
 		int number = project.allocateTicketNumber();
-		Ticket ticket = Ticket.create(number, actorId, actorName, title, description, priority, type, state, assigneeId, assigneeName, timestamp);
+		Ticket ticket = Ticket.create(number, actorId, actorName, title, description, priority, type, state, assigneeIds, assigneeNames, timestamp);
 		ticket.addHistory(HistoryEntry.create(actorId, actorName, "create", "ticket", "", "", "ticket", ticket.getId(), timestamp));
 		project.addTicket(ticket);
+		
+		if (assigneeIds != null) {
+			for (UUID assigneeId : assigneeIds) {
+				sendAssignmentNotification(server, project, ticket, assigneeId, actorName);
+			}
+		}
+		
 		return ticket;
 	}
 
@@ -35,27 +42,19 @@ public class ProjectService {
 		applyFieldChange(ticket.getType(), update.type(), "type", actorId, actorName, ticket, timestamp, ticket::setType);
 		applyFieldChange(ticket.getState(), update.state(), "state", actorId, actorName, ticket, timestamp, ticket::setState);
 
-		if (!Objects.equals(ticket.getAssigneeId(), update.assigneeId()) || !Objects.equals(ticket.getAssigneeName(), update.assigneeName())) {
-			String before = ticket.getAssigneeName() == null ? "" : ticket.getAssigneeName();
-			String after = update.assigneeName() == null ? "" : update.assigneeName();
-			
-			// Cancel pending notification for old assignee if they are offline and it hasn't been delivered
-			if (ticket.getAssigneeId() != null) {
-				NotificationManager.get(server).cancelAssignmentNotification(ticket.getAssigneeId(), ticket.getId());
-			}
-
-			ticket.setAssigneeId(update.assigneeId());
-			ticket.setAssigneeName(update.assigneeName());
-			ticket.addHistory(HistoryEntry.create(actorId, actorName, "update", "assignee", before, after, "ticket", ticket.getId(), timestamp));
-			
-			if (update.assigneeId() != null) {
-				sendAssignmentNotification(server, project, ticket, update.assigneeId(), actorName);
-			}
-		}
+		updateAssignees(server, project, ticket, actorId, actorName, update.assigneeIds(), update.assigneeNames(), timestamp);
 
 		if (!Objects.equals(ticket.getSprintId(), update.sprintId())) {
-			String before = ticket.getSprintId() == null ? "None" : ticket.getSprintId().toString();
-			String after = update.sprintId() == null ? "None" : update.sprintId().toString();
+			String before = "None";
+			if (ticket.getSprintId() != null) {
+				Sprint s = project.findSprint(ticket.getSprintId());
+				before = s != null ? s.getName() : "Unknown";
+			}
+			String after = "None";
+			if (update.sprintId() != null) {
+				Sprint s = project.findSprint(update.sprintId());
+				after = s != null ? s.getName() : "Unknown";
+			}
 			ticket.setSprintId(update.sprintId());
 			ticket.addHistory(HistoryEntry.create(actorId, actorName, "update", "sprint", before, after, "ticket", ticket.getId(), timestamp));
 		}
@@ -134,7 +133,8 @@ public class ProjectService {
 		ticket.addHistory(HistoryEntry.create(actorId, actorName, "update", "subtask_status", before, after, "subtask", subtask.getId(), timestamp));
 	}
 
-	public static void updateProjectSettings(ProjectData project, String name, String description, String ticketPrefix, List<String> statuses, List<String> ticketTypes) {
+	public static void updateProjectSettings(MinecraftServer server, ProjectData project, String name, String description, String ticketPrefix, List<String> statuses, List<String> ticketTypes, long timestamp) {
+		boolean wasNotExample = !project.getName().equals("EXAMPLE");
 		if (name != null && !name.isBlank()) {
 			project.setName(name);
 		}
@@ -150,6 +150,11 @@ public class ProjectService {
 		if (ticketTypes != null && !ticketTypes.isEmpty()) {
 			project.setTicketTypes(ticketTypes);
 		}
+		
+		// Auto-populate example data when renamed to EXAMPLE
+		if (wasNotExample && "EXAMPLE".equals(project.getName()) && project.getTickets().isEmpty()) {
+			populateExampleData(server, project, timestamp);
+		}
 	}
 
 	public static void addMember(ProjectData project, UUID memberId, String memberName, Member.PermissionLevel level) {
@@ -158,6 +163,10 @@ public class ProjectService {
 
 	public static void removeMember(ProjectData project, UUID memberId) {
 		project.removeMember(memberId);
+	}
+
+	public static void updateProjectPublic(ProjectData project, boolean isPublic) {
+		project.setPublic(isPublic);
 	}
 
 	public static void addSprint(ProjectData project, String name, long startTime, long endTime) {
@@ -180,6 +189,93 @@ public class ProjectService {
 		}
 		ticket.setDeleted(true);
 		ticket.addHistory(HistoryEntry.create(actorId, actorName, "delete", "ticket", "", "deleted", "ticket", ticket.getId(), timestamp));
+	}
+
+	private static void updateAssignees(MinecraftServer server, ProjectData project, Ticket ticket, UUID actorId, String actorName, List<UUID> newIds, List<String> newNames, long timestamp) {
+		List<UUID> currentIds = ticket.getAssigneeIds();
+		if (!Objects.equals(currentIds, newIds)) {
+			String before = String.join(", ", ticket.getAssigneeNames());
+			String after = String.join(", ", newNames != null ? newNames : List.of());
+			
+			// Cancel notifications for removed assignees
+			for (UUID oldId : currentIds) {
+				if (newIds == null || !newIds.contains(oldId)) {
+					NotificationManager.get(server).cancelAssignmentNotification(oldId, ticket.getId());
+				}
+			}
+
+			ticket.setAssigneeIds(newIds);
+			ticket.setAssigneeNames(newNames);
+			ticket.addHistory(HistoryEntry.create(actorId, actorName, "update", "assignees", before, after, "ticket", ticket.getId(), timestamp));
+			
+			// Send notifications to new assignees
+			if (newIds != null) {
+				for (UUID newId : newIds) {
+					if (!currentIds.contains(newId)) {
+						sendAssignmentNotification(server, project, ticket, newId, actorName);
+					}
+				}
+			}
+		}
+	}
+
+	private static void populateExampleData(MinecraftServer server, ProjectData project, long timestamp) {
+		UUID systemId = UUID.fromString("00000000-0000-0000-0000-000000000000");
+		String systemName = "System";
+		
+		// Create LV Age sprint
+		Sprint lvSprint = Sprint.create("LV Age Progression", timestamp, timestamp + (14L * 24 * 60 * 60 * 1000));
+		lvSprint.setStatus(Sprint.Status.ACTIVE);
+		project.addSprint(lvSprint);
+		
+		// Create example tickets for GregTech LV Age
+		Ticket t1 = createTicket(server, project, systemId, systemName,
+			"Craft Steel Ingots",
+			"Smelt iron dust with coal dust in the primitive blast furnace to produce steel ingots. You'll need at least 64 steel ingots for basic LV machines.",
+			TicketPriority.HIGH, "Story", "In Progress",
+			null, List.of(), timestamp);
+		t1.setSprintId(lvSprint.getId());
+		t1.addLabel("materials");
+		t1.addLabel("progression");
+		
+		Ticket t2 = createTicket(server, project, systemId, systemName,
+			"Craft LV Machine Hull",
+			"Combine steel plates with LV circuits to create the LV machine hull. This is the foundation for all LV-tier machines.",
+			TicketPriority.MEDIUM, "Task", "To Do",
+			null, List.of(), timestamp);
+		t2.setSprintId(lvSprint.getId());
+		t2.addLabel("crafting");
+		
+		Ticket t3 = createTicket(server, project, systemId, systemName,
+			"Build Electric Blast Furnace",
+			"Construct your first Electric Blast Furnace (EBF) using LV machine hulls and heating coils. This unlocks aluminum and titanium processing.",
+			TicketPriority.HIGH, "Quest", "To Do",
+			null, List.of(), timestamp);
+		t3.setSprintId(lvSprint.getId());
+		t3.addLabel("multiblock");
+		t3.addLabel("boss fight");
+		
+		Ticket t4 = createTicket(server, project, systemId, systemName,
+			"Automate Steam Production",
+			"Set up automated steam generation using solar boilers or coal-fired boilers to support your LV machines.",
+			TicketPriority.LOW, "Task", "Done",
+			null, List.of(), timestamp);
+		t4.setSprintId(lvSprint.getId());
+		t4.addLabel("automation");
+		
+		Ticket t5 = createTicket(server, project, systemId, systemName,
+			"Craft Basic Electronic Circuit",
+			"Assemble basic electronic circuits using resistors, vacuum tubes, and copper cables. Required for LV machine upgrades.",
+			TicketPriority.MEDIUM, "Task", "To Do",
+			null, List.of(), timestamp);
+		t5.setSprintId(lvSprint.getId());
+		t5.addLabel("crafting");
+		t5.addLabel("resources");
+		
+		// Add subtasks to the EBF quest
+		addSubtask(t3, systemId, systemName, "Gather 32 Steel Ingots", "Mine and process iron to create steel ingots", timestamp);
+		addSubtask(t3, systemId, systemName, "Craft Heating Coils", "Create cupronickel heating coils for the EBF", timestamp);
+		addSubtask(t3, systemId, systemName, "Assemble Multiblock", "Place blocks in 3x3x4 structure and validate with wrench", timestamp);
 	}
 
 	private static void applyFieldChange(String before, String after, String field, UUID actorId, String actorName, Ticket ticket, long timestamp, java.util.function.Consumer<String> setter) {

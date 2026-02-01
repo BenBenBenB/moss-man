@@ -23,7 +23,7 @@
       .replace(/'/g, '&#39;');
   };
 
-  const sendAction = (action, payload = {}) => {
+  const sendAction = async (action, payload = {}) => {
     if (window.cefQuery) {
       window.cefQuery({
         request: JSON.stringify({ action, payload }),
@@ -32,6 +32,20 @@
       });
     } else {
       console.log('Web Action:', action, payload);
+      const projectId = getProjectIdFromUrl();
+      if (!projectId) return;
+      try {
+        const resp = await fetch(`/api/action/${projectId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action, payload })
+        });
+        if (resp.ok) {
+          refreshState();
+        }
+      } catch (e) {
+        console.error('Web Action failed', e);
+      }
     }
   };
 
@@ -281,14 +295,17 @@
               ${stack.length
           ? stack.map((ticket) => `
                     <div class="ticket-card" draggable="true" data-role="draggable-ticket" data-ticket-id="${ticket.id}" data-action="open-ticket">
-                      <strong>#${ticket.number} ${escapeHtml(ticket.title)}</strong>
+                      <strong>
+                        #${ticket.number} ${escapeHtml(ticket.title)}
+                        ${uiState.canEdit ? `<span class="edit-link" data-action="edit-ticket-direct" data-ticket-id="${ticket.id}" title="Edit Ticket">✎</span>` : ''}
+                      </strong>
                       <small>${escapeHtml(ticket.description || 'No description')}</small>
                       <div class="labels">
                         ${(ticket.labels || []).map(l => `<span class="tag xsmall">${escapeHtml(l)}</span>`).join('')}
                       </div>
                       <div class="meta">
                         <span>${escapeHtml(ticket.type || 'Task')}</span>
-                        <span>${escapeHtml(ticket.assigneeName || 'Unassigned')}</span>
+                        <span>${escapeHtml((ticket.assignees && ticket.assignees.length) ? ticket.assignees.join(', ') : (ticket.assigneeName || 'Unassigned'))}</span>
                       </div>
                     </div>
                   `).join('')
@@ -317,10 +334,13 @@
           ${tickets.map((ticket) => `
             <tr data-action="open-ticket" data-ticket-id="${ticket.id}">
               <td>${ticket.number}</td>
-              <td>${escapeHtml(ticket.title)}</td>
+              <td>
+                ${escapeHtml(ticket.title)}
+                ${uiState.canEdit ? `<span class="edit-link" data-action="edit-ticket-direct" data-ticket-id="${ticket.id}" title="Edit Ticket">✎</span>` : ''}
+              </td>
               <td>${escapeHtml(ticket.state)}</td>
               <td>${escapeHtml(ticket.type)}</td>
-              <td>${escapeHtml(ticket.assigneeName || '-')}</td>
+              <td>${escapeHtml((ticket.assignees && ticket.assignees.length) ? ticket.assignees.join(', ') : (ticket.assigneeName || '-'))}</td>
               <td>${(ticket.labels || []).map(l => `<span class="tag xsmall">${escapeHtml(l)}</span>`).join(' ')}</td>
             </tr>
           `).join('')}
@@ -413,7 +433,7 @@
                   <div class="list-item">Type: ${escapeHtml(ticket.type || 'Task')}</div>
                   <div class="list-item">State: ${escapeHtml(ticket.state || '-')}</div>
                   <div class="list-item">Priority: ${escapeHtml(ticket.priority || '-')}</div>
-                  <div class="list-item">Assignee: ${escapeHtml(ticket.assigneeName || 'Unassigned')}</div>
+                  <div class="list-item">Assignee: ${escapeHtml((ticket.assignees && ticket.assignees.length) ? ticket.assignees.join(', ') : (ticket.assigneeName || 'Unassigned'))}</div>
                   <div class="list-item">Sprint: ${escapeHtml((project.sprints || []).find(s => s.id === ticket.sprintId)?.name || 'None')}</div>
                 </div>
               </div>
@@ -440,9 +460,14 @@
                 <h3>Comments</h3>
                 <div class="list">
                   ${comments.length ? comments.map((c) => `
-                    <div class="list-item">
-                      <strong>${escapeHtml(c.authorName)}</strong> <small>${new Date(c.createdAt).toLocaleString()}</small>
-                      <p>${escapeHtml(c.message)}</p>
+                    <div class="list-item comment-item">
+                      <img src="https://mc-heads.net/avatar/${escapeHtml(c.authorName)}/32" class="comment-avatar" />
+                      <div class="comment-content">
+                        <div class="comment-header">
+                          <strong>${escapeHtml(c.authorName)}</strong> <small>${new Date(c.createdAt).toLocaleString()}</small>
+                        </div>
+                        <p>${escapeHtml(c.message)}</p>
+                      </div>
                     </div>
                   `).join('') : '<div class="list-item">No comments yet.</div>'}
                 </div>
@@ -451,14 +476,28 @@
                 <details>
                   <summary><h3>Activity History</h3></summary>
                   <div class="list history-list">
-                    ${history.length ? history.map((e) => `
-                      <div class="list-item history-item">
-                        <small>${new Date(e.timestamp).toLocaleString()}</small><br/>
-                        <strong>${escapeHtml(e.actorName)}</strong> changed <strong>${escapeHtml(e.field)}</strong>
-                        ${e.before ? `from <em>${escapeHtml(e.before)}</em>` : ''}
-                        to <em>${escapeHtml(e.after)}</em>
-                      </div>
-                    `).join('') : '<div class="list-item">No history recorded.</div>'}
+                    ${history.length ? history.map((e) => {
+      let content = '';
+      if (e.action === 'create' && e.field === 'ticket') {
+        content = 'created this ticket';
+      } else if (e.action === 'comment') {
+        content = `commented on ${escapeHtml(e.field)}`;
+      } else if (e.action === 'subtask_add') {
+        content = `added subtask <em>${escapeHtml(e.after)}</em>`;
+      } else if (e.action === 'update' && e.field === 'assignees') {
+        content = `changed assignees to <em>${escapeHtml(e.after || 'Unassigned')}</em>`;
+      } else {
+        content = `changed <strong>${escapeHtml(e.field)}</strong>`;
+        if (e.before) content += ` from <em>${escapeHtml(e.before)}</em>`;
+        if (e.after) content += ` to <em>${escapeHtml(e.after)}</em>`;
+      }
+      return `
+                        <div class="list-item history-item">
+                          <small>${new Date(e.timestamp).toLocaleString()}</small><br/>
+                          <strong>${escapeHtml(e.actorName)}</strong> ${content}
+                        </div>
+                      `;
+    }).join('') : '<div class="list-item">No history recorded.</div>'}
                   </div>
                 </details>
               </div>
@@ -498,6 +537,16 @@
                 <input data-field="project-prefix" type="text" value="${escapeHtml(project.ticketPrefix || '')}" ${isAdmin ? '' : 'disabled'} />
               </div>
               <div class="field-group">
+                <label>Privacy</label>
+                <div class="inline-row">
+                  <label class="toggle-switch">
+                    <input type="checkbox" data-field="project-public" ${project.isPublic ? 'checked' : ''} ${isAdmin ? '' : 'disabled'}>
+                    <span class="slider"></span>
+                  </label>
+                  <span>Public Project (visible to non-members)</span>
+                </div>
+              </div>
+              <div class="field-group">
                 <label>Statuses (comma separated)</label>
                 <textarea data-field="project-statuses" ${isAdmin ? '' : 'disabled'}>${escapeHtml((project.statuses || []).join(', '))}</textarea>
               </div>
@@ -509,7 +558,8 @@
                 <label>Team Members</label>
                 <div class="list">
                   ${members.length ? members.map((m) => `
-                    <div class="list-item team-row">
+                    <div class="list-item team-row settings-member-row">
+                      <img src="https://mc-heads.net/avatar/${escapeHtml(m.name)}/32" class="settings-member-avatar" />
                       <div class="member-info">
                         <span>${escapeHtml(m.name)}</span>
                         <span class="tag small">${escapeHtml(m.permission || '')}</span>
@@ -566,6 +616,27 @@
     const types = project.ticketTypes || ['Task'];
     const statuses = project.statuses || ['To Do'];
     const priorities = ['LOW', 'MEDIUM', 'HIGH'];
+    const members = project.members || [];
+
+    const renderAssigneeDropdown = (currentNamesRaw) => {
+      const selected = Array.isArray(currentNamesRaw) ? currentNamesRaw : (currentNamesRaw ? [currentNamesRaw] : []);
+
+      return `
+        <div class="assignee-dropdown" data-role="assignee-multiselect">
+          ${members.map(m => {
+        const isSelected = selected.includes(m.name);
+        return `
+            <div class="assignee-option ${isSelected ? 'selected' : ''}" data-action="toggle-assignee" data-value="${escapeHtml(m.name)}">
+              <img src="https://mc-heads.net/avatar/${escapeHtml(m.name)}/32" class="assignee-avatar" />
+              <span class="assignee-name">${escapeHtml(m.name)}</span>
+              ${isSelected ? '<span style="margin-left:auto;color:var(--primary)">✓</span>' : ''}
+            </div>
+          `;
+      }).join('')}
+        </div>
+        <input type="hidden" data-field="assigneeNames" value="${escapeHtml(JSON.stringify(selected))}" />
+      `;
+    };
 
     if (activeModal.type === 'new-ticket') {
       return `
@@ -603,11 +674,11 @@
             </div>
             <div class="field-group">
               <label>Labels (comma separated)</label>
-              <input data-field="labels" type="text" placeholder="bug, ui, backend" />
+              <input data-field="labels" type="text" placeholder="resources, boss fight" />
             </div>
             <div class="field-group">
               <label>Assignee</label>
-              <input data-field="assignee" type="text" placeholder="Optional" />
+              ${renderAssigneeDropdown([])}
             </div>
             <div class="field-group">
               <label>Sprint</label>
@@ -670,7 +741,7 @@
             </div>
             <div class="field-group">
               <label>Assignee</label>
-              <input data-field="assignee" type="text" value="${escapeHtml(ticket.assigneeName || '')}" />
+              ${renderAssigneeDropdown(ticket.assignees || (ticket.assigneeName ? [ticket.assigneeName] : []))}
             </div>
             <div class="field-group">
               <label>Sprint</label>
@@ -908,6 +979,16 @@
       default:
         markup = renderProject();
     }
+    if (activeModal && app.querySelector('.modal-backdrop')) {
+      // If modal is already showing, only update the background content
+      // to avoid losing focus in modal inputs.
+      const shell = app.querySelector('.app-shell');
+      if (shell) {
+        // This is a bit tricky as renderProject() returns the full shell.
+        // For simplicity, we skip re-rendering the background if a modal is open.
+        return;
+      }
+    }
     app.innerHTML = markup + renderModal();
     initDragAndDrop();
 
@@ -991,6 +1072,12 @@
     }
     if (action === 'edit-ticket') {
       openModal('edit-ticket', { ticket });
+      return;
+    }
+    if (action === 'edit-ticket-direct') {
+      const ticketId = actionEl.dataset.ticketId;
+      const t = (project.tickets || []).find(it => it.id === ticketId);
+      if (t) openModal('edit-ticket', { ticket: t });
       return;
     }
     if (action === 'add-ticket-comment') {
@@ -1079,7 +1166,8 @@
       const typesRaw = (app.querySelector('[data-field="project-types"]') || {}).value || '';
       const statuses = statusesRaw.split(',').map((s) => s.trim()).filter(Boolean);
       const ticketTypes = typesRaw.split(',').map((s) => s.trim()).filter(Boolean);
-      sendAction('update-project-settings', { name, description, ticketPrefix, statuses, ticketTypes });
+      const isPublic = (app.querySelector('[data-field="project-public"]') || {}).checked || false;
+      sendAction('update-project-settings', { name, description, ticketPrefix, statuses, ticketTypes, isPublic });
       setScreen(null);
       return;
     }
@@ -1103,6 +1191,32 @@
       }
       return;
     }
+    if (action === 'toggle-assignee') {
+      const value = actionEl.dataset.value;
+      const container = actionEl.closest('[data-role="assignee-multiselect"]');
+      const input = container.parentNode.querySelector('[data-field="assigneeNames"]');
+      let current = [];
+      try { current = JSON.parse(input.value); } catch (e) { }
+
+      if (current.includes(value)) {
+        current = current.filter(v => v !== value);
+        actionEl.classList.remove('selected');
+        const check = actionEl.querySelector('span:last-child');
+        if (check && check.innerText === '✓') check.remove();
+      } else {
+        current.push(value);
+        actionEl.classList.add('selected');
+        if (!actionEl.querySelector('span:last-child') || actionEl.querySelector('span:last-child').innerText !== '✓') {
+          const check = document.createElement('span');
+          check.style.marginLeft = 'auto';
+          check.style.color = 'var(--primary)';
+          check.innerText = '✓';
+          actionEl.appendChild(check);
+        }
+      }
+      input.value = JSON.stringify(current);
+      return;
+    }
   });
 
   app.addEventListener('submit', (event) => {
@@ -1118,7 +1232,10 @@
       const priority = form.querySelector('[data-field="priority"]').value;
       const labelsRaw = form.querySelector('[data-field="labels"]').value || '';
       const labels = labelsRaw.split(',').map(s => s.trim()).filter(Boolean);
-      const assigneeName = form.querySelector('[data-field="assignee"]').value.trim();
+      const assigneeNamesRaw = form.querySelector('[data-field="assigneeNames"]').value;
+      let assigneeNames = [];
+      try { assigneeNames = JSON.parse(assigneeNamesRaw); } catch (e) { }
+
       const subtasksRaw = form.querySelector('[data-field="subtasks"]').value || '';
       const subtasks = subtasksRaw.split('\n').map((line) => line.trim()).filter(Boolean).map((line) => {
         const parts = line.split('|');
@@ -1126,7 +1243,7 @@
       }).filter((entry) => entry.name);
       if (!title) return;
       const sprintId = form.querySelector('[data-field="sprintId"]').value;
-      sendAction('create-ticket', { title, description, type, state, priority, labels, assigneeName, subtasks, sprintId });
+      sendAction('create-ticket', { title, description, type, state, priority, labels, assigneeNames, subtasks, sprintId });
       closeModal();
       return;
     }
@@ -1141,10 +1258,13 @@
       const priority = form.querySelector('[data-field="priority"]').value;
       const labelsRaw = form.querySelector('[data-field="labels"]').value || '';
       const labels = labelsRaw.split(',').map(s => s.trim()).filter(Boolean);
-      const assigneeName = form.querySelector('[data-field="assignee"]').value.trim();
+      const assigneeNamesRaw = form.querySelector('[data-field="assigneeNames"]').value;
+      let assigneeNames = [];
+      try { assigneeNames = JSON.parse(assigneeNamesRaw); } catch (e) { }
+
       if (!title) return;
       const sprintId = form.querySelector('[data-field="sprintId"]').value;
-      sendAction('update-ticket', { ticketId, title, description, type, state, priority, labels, assigneeName, sprintId });
+      sendAction('update-ticket', { ticketId, title, description, type, state, priority, labels, assigneeNames, sprintId });
       closeModal();
       return;
     }

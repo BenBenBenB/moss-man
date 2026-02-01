@@ -38,8 +38,10 @@ public final class MossuraUiBridge {
 			router.addHandler(new CefMessageRouterHandlerAdapter() {
 				@Override
 				public boolean onQuery(CefBrowser browser, CefFrame frame, long queryId, String request, boolean persistent, CefQueryCallback callback) {
+					System.out.println("DEBUG: MossuraUiBridge onQuery: " + request);
 					MossuraUiActionHandler handler = ACTIVE.get();
 					if (handler == null) {
+						System.out.println("DEBUG: No active UI handler");
 						callback.failure(404, "No active UI handler");
 						return true;
 					}
@@ -61,10 +63,12 @@ public final class MossuraUiBridge {
 							payload = payloadElement.getAsJsonObject();
 						}
 					}
+					System.out.println("DEBUG: Dispatching action: " + action);
 					boolean handled = handler.handleUiAction(action, payload);
 					if (handled) {
 						callback.success("ok");
 					} else {
+						System.out.println("DEBUG: Action not handled");
 						callback.failure(400, "Unhandled action");
 					}
 					return true;

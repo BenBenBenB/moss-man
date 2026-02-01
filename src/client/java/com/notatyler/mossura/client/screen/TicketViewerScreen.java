@@ -75,10 +75,10 @@ public class TicketViewerScreen extends MossuraMcefScreen {
 		} catch (IllegalArgumentException ignored) {
 			priority = ticket.getPriority();
 		}
-		String assigneeName = readString(payload, "assigneeName", ticket.getAssigneeName() == null ? "" : ticket.getAssigneeName());
+		java.util.List<String> assigneeNames = readStringList(payload, "assigneeNames", ticket.getAssigneeNames());
 		UUID sprintId = readUuid(payload, "sprintId", ticket.getSprintId());
 		java.util.List<String> labels = readStringList(payload, "labels", ticket.getLabels());
-		ClientPlayNetworking.send(new MossuraPayloads.UpdateTicketPayload(project.getId(), targetId, title, description, type, state, priority, assigneeName, sprintId, labels));
+		ClientPlayNetworking.send(new MossuraPayloads.UpdateTicketPayload(project.getId(), targetId, title, description, type, state, priority, assigneeNames, sprintId, labels));
 		ClientPlayNetworking.send(new MossuraPayloads.RequestProjectSyncPayload(project.getId()));
 		return true;
 	}
