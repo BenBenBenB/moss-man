@@ -102,6 +102,7 @@ public final class MossuraUiState {
 		obj.addProperty("description", project.getDescription() == null ? "" : project.getDescription());
 		obj.addProperty("ownerName", project.getOwnerName());
 		obj.addProperty("ticketPrefix", project.getTicketPrefix());
+		obj.addProperty("isPublic", project.isPublic());
 		JsonArray members = new JsonArray();
 		for (com.notatyler.mossura.project.Member member : project.getMembersMap().values()) {
 			JsonObject memberJson = new JsonObject();
@@ -153,7 +154,15 @@ public final class MossuraUiState {
 		obj.addProperty("priority", ticket.getPriority().name());
 		obj.addProperty("type", ticket.getType());
 		obj.addProperty("state", ticket.getState());
-		obj.addProperty("assigneeName", ticket.getAssigneeName() == null ? "" : ticket.getAssigneeName());
+		
+		JsonArray assignees = new JsonArray();
+		for (String name : ticket.getAssigneeNames()) {
+			assignees.add(name);
+		}
+		obj.add("assignees", assignees);
+		// Backwards compatibility for now
+		obj.addProperty("assigneeName", ticket.getAssigneeNames().isEmpty() ? "" : ticket.getAssigneeNames().get(0));
+		
 		obj.addProperty("creatorName", ticket.getCreatorName());
 		obj.addProperty("createdAt", ticket.getCreatedAt());
 		if (ticket.getSprintId() != null) {
@@ -179,6 +188,7 @@ public final class MossuraUiState {
 			JsonObject entryJson = new JsonObject();
 			entryJson.addProperty("id", entry.getId().toString());
 			entryJson.addProperty("actorName", entry.getActorName());
+			entryJson.addProperty("action", entry.getAction());
 			entryJson.addProperty("field", entry.getField());
 			entryJson.addProperty("before", entry.getBeforeValue());
 			entryJson.addProperty("after", entry.getAfterValue());

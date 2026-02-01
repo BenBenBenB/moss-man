@@ -55,7 +55,7 @@ public final class MossuraPayloads {
 		}
 	}
 
-	public record CreateTicketPayload(UUID projectId, String title, String description, String type, String state, TicketPriority priority, String assigneeName, UUID sprintId, List<String> labels) implements CustomPayload {
+	public record CreateTicketPayload(UUID projectId, String title, String description, String type, String state, TicketPriority priority, List<String> assigneeNames, UUID sprintId, List<String> labels) implements CustomPayload {
 		public static final Id<CreateTicketPayload> ID = new Id<>(Identifier.of(Mossura.MOD_ID, "create_ticket"));
 		public static final PacketCodec<RegistryByteBuf, CreateTicketPayload> CODEC = PacketCodec.ofStatic(CreateTicketPayload::write, CreateTicketPayload::read);
 
@@ -71,12 +71,11 @@ public final class MossuraPayloads {
 			String type = buf.readString(64);
 			String state = buf.readString(64);
 			TicketPriority priority = TicketPriority.valueOf(buf.readString(32));
-			boolean hasAssignee = buf.readBoolean();
-			String assigneeName = hasAssignee ? buf.readString(64) : null;
+			List<String> assigneeNames = readStringList(buf, 64);
 			boolean hasSprint = buf.readBoolean();
 			UUID sprintId = hasSprint ? buf.readUuid() : null;
 			List<String> labels = readStringList(buf, 64);
-			return new CreateTicketPayload(projectId, title, description, type, state, priority, assigneeName, sprintId, labels);
+			return new CreateTicketPayload(projectId, title, description, type, state, priority, assigneeNames, sprintId, labels);
 		}
 
 		private static void write(RegistryByteBuf buf, CreateTicketPayload payload) {
@@ -86,12 +85,7 @@ public final class MossuraPayloads {
 			buf.writeString(payload.type, 64);
 			buf.writeString(payload.state, 64);
 			buf.writeString(payload.priority.name(), 32);
-			if (payload.assigneeName != null) {
-				buf.writeBoolean(true);
-				buf.writeString(payload.assigneeName, 64);
-			} else {
-				buf.writeBoolean(false);
-			}
+			writeStringList(buf, payload.assigneeNames);
 			if (payload.sprintId != null) {
 				buf.writeBoolean(true);
 				buf.writeUuid(payload.sprintId);
@@ -102,7 +96,7 @@ public final class MossuraPayloads {
 		}
 	}
 
-	public record UpdateTicketPayload(UUID projectId, UUID ticketId, String title, String description, String type, String state, TicketPriority priority, String assigneeName, UUID sprintId, List<String> labels) implements CustomPayload {
+	public record UpdateTicketPayload(UUID projectId, UUID ticketId, String title, String description, String type, String state, TicketPriority priority, List<String> assigneeNames, UUID sprintId, List<String> labels) implements CustomPayload {
 		public static final Id<UpdateTicketPayload> ID = new Id<>(Identifier.of(Mossura.MOD_ID, "update_ticket"));
 		public static final PacketCodec<RegistryByteBuf, UpdateTicketPayload> CODEC = PacketCodec.ofStatic(UpdateTicketPayload::write, UpdateTicketPayload::read);
 
@@ -119,12 +113,11 @@ public final class MossuraPayloads {
 			String type = buf.readString(64);
 			String state = buf.readString(64);
 			TicketPriority priority = TicketPriority.valueOf(buf.readString(32));
-			boolean hasAssignee = buf.readBoolean();
-			String assigneeName = hasAssignee ? buf.readString(64) : null;
+			List<String> assigneeNames = readStringList(buf, 64);
 			boolean hasSprint = buf.readBoolean();
 			UUID sprintId = hasSprint ? buf.readUuid() : null;
 			List<String> labels = readStringList(buf, 64);
-			return new UpdateTicketPayload(projectId, ticketId, title, description, type, state, priority, assigneeName, sprintId, labels);
+			return new UpdateTicketPayload(projectId, ticketId, title, description, type, state, priority, assigneeNames, sprintId, labels);
 		}
 
 		private static void write(RegistryByteBuf buf, UpdateTicketPayload payload) {
@@ -135,12 +128,7 @@ public final class MossuraPayloads {
 			buf.writeString(payload.type, 64);
 			buf.writeString(payload.state, 64);
 			buf.writeString(payload.priority.name(), 32);
-			if (payload.assigneeName != null) {
-				buf.writeBoolean(true);
-				buf.writeString(payload.assigneeName, 64);
-			} else {
-				buf.writeBoolean(false);
-			}
+			writeStringList(buf, payload.assigneeNames);
 			if (payload.sprintId != null) {
 				buf.writeBoolean(true);
 				buf.writeUuid(payload.sprintId);

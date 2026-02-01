@@ -26,6 +26,7 @@ public class ProjectData {
 	private int nextTicketNumber = 1000;
 	private String ticketPrefix;
 	private final List<Ticket> tickets = new ArrayList<>();
+	private boolean isPublic;
 
 	public ProjectData(UUID id, String name, String description, UUID ownerId, String ownerName, String ticketPrefix) {
 		this.id = id;
@@ -47,7 +48,7 @@ public class ProjectData {
 		ProjectData data = new ProjectData(UUID.randomUUID(), name, "", ownerId, ownerName, prefix);
 		data.members.put(ownerId, new Member(ownerId, ownerName, Member.PermissionLevel.ADMIN));
 		data.statuses.addAll(List.of("To Do", "In Progress", "Done", "Blocked"));
-		data.ticketTypes.addAll(List.of("Epic", "Story", "Task"));
+		data.ticketTypes.addAll(List.of("Task", "Story", "Quest"));
 		return data;
 	}
 
@@ -57,6 +58,14 @@ public class ProjectData {
 
 	public void setTicketPrefix(String ticketPrefix) {
 		this.ticketPrefix = validateTicketPrefix(ticketPrefix);
+	}
+
+	public boolean isPublic() {
+		return isPublic;
+	}
+
+	public void setPublic(boolean isPublic) {
+		this.isPublic = isPublic;
 	}
 
 	public String getDescription() {
@@ -180,6 +189,7 @@ public class ProjectData {
 		NbtUtil.putUuid(nbt, "ownerId", ownerId);
 		nbt.putString("ownerName", ownerName);
 		nbt.putString("ticketPrefix", ticketPrefix);
+		nbt.putBoolean("isPublic", isPublic);
 		
 		NbtList memberList = new NbtList();
 		for (Member member : members.values()) {
@@ -223,6 +233,7 @@ public class ProjectData {
 		String ownerName = nbt.getString("ownerName", "");
 		String ticketPrefix = nbt.getString("ticketPrefix", "PROJ");
 		ProjectData data = new ProjectData(id, name, description, ownerId, ownerName, ticketPrefix);
+		data.isPublic = nbt.getBoolean("isPublic", false);
 
 		NbtList members = nbt.getListOrEmpty("members");
 		for (int i = 0; i < members.size(); i++) {
@@ -251,9 +262,9 @@ public class ProjectData {
 			data.ticketTypes.add(typeList.getString(i, ""));
 		}
 		if (data.ticketTypes.isEmpty()) {
-			data.ticketTypes.add("Epic");
-			data.ticketTypes.add("Story");
 			data.ticketTypes.add("Task");
+			data.ticketTypes.add("Story");
+			data.ticketTypes.add("Quest");
 		}
 
 		data.nextTicketNumber = nbt.getInt("nextTicketNumber", 1000);

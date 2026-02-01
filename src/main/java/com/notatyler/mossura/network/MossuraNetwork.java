@@ -37,8 +37,8 @@ public class MossuraNetwork {
 					player.sendMessage(Text.literal("You do not have permission to edit this project."), false);
 					return;
 				}
-				UUID assigneeId = resolvePlayerId(context.server(), payload.assigneeName());
-				Ticket ticket = ProjectService.createTicket(project, player.getUuid(), player.getName().getString(), payload.title(), payload.description(), payload.priority(), payload.type(), payload.state(), assigneeId, payload.assigneeName(), context.server().getOverworld().getTime());
+				java.util.List<UUID> assigneeIds = resolvePlayerIds(context.server(), payload.assigneeNames());
+				Ticket ticket = ProjectService.createTicket(context.server(), project, player.getUuid(), player.getName().getString(), payload.title(), payload.description(), payload.priority(), payload.type(), payload.state(), assigneeIds, payload.assigneeNames(), context.server().getOverworld().getTime());
 				if (payload.sprintId() != null) {
 					ticket.setSprintId(payload.sprintId());
 				}
@@ -53,9 +53,11 @@ public class MossuraNetwork {
 
 		ServerPlayNetworking.registerGlobalReceiver(MossuraPayloads.UpdateTicketPayload.ID, (payload, context) -> {
 			context.server().execute(() -> {
+				System.out.println("DEBUG: Server received UpdateTicketPayload: " + payload);
 				ServerPlayerEntity player = context.player();
 				ProjectData project = getProject(context.server(), payload.projectId(), player);
 				if (project == null) {
+					System.out.println("DEBUG: Project not found on server");
 					return;
 				}
 				if (!canEdit(project, player)) {
@@ -67,8 +69,8 @@ public class MossuraNetwork {
 					player.sendMessage(Text.literal("Ticket not found."), false);
 					return;
 				}
-				UUID assigneeId = resolvePlayerId(context.server(), payload.assigneeName());
-				TicketUpdate update = new TicketUpdate(payload.title(), payload.description(), payload.priority(), payload.type(), payload.state(), assigneeId, payload.assigneeName(), payload.sprintId(), payload.labels());
+				java.util.List<UUID> assigneeIds = resolvePlayerIds(context.server(), payload.assigneeNames());
+				TicketUpdate update = new TicketUpdate(payload.title(), payload.description(), payload.priority(), payload.type(), payload.state(), assigneeIds, payload.assigneeNames(), payload.sprintId(), payload.labels());
 				ProjectService.updateTicket(context.server(), project, ticket, player.getUuid(), player.getName().getString(), update, context.server().getOverworld().getTime());
 				markAndSync(context.server(), project);
 			});
@@ -277,7 +279,7 @@ public class MossuraNetwork {
 			context.server().execute(() -> {
 				ServerPlayerEntity player = context.player();
 				ProjectData project = getProject(context.server(), payload.projectId(), player);
-				if (project == null || !canManageMembers(project, player)) return;
+				if (project == null || !canAdmin(project, player)) return;
 				ProjectService.addSprint(project, payload.name(), payload.startTime(), payload.endTime());
 				markAndSync(context.server(), project);
 			});
@@ -287,7 +289,7 @@ public class MossuraNetwork {
 			context.server().execute(() -> {
 				ServerPlayerEntity player = context.player();
 				ProjectData project = getProject(context.server(), payload.projectId(), player);
-				if (project == null || !canManageMembers(project, player)) return;
+				if (project == null || !canAdmin(project, player)) return;
 				ProjectService.updateSprint(project, payload.sprintId(), payload.name(), payload.startTime(), payload.endTime(), payload.status());
 				markAndSync(context.server(), project);
 			});
@@ -323,12 +325,18 @@ public class MossuraNetwork {
 		return project;
 	}
 
-	private static UUID resolvePlayerId(MinecraftServer server, String assigneeName) {
-		if (assigneeName == null || assigneeName.isBlank()) {
-			return null;
+	private static java.util.List<UUID> resolvePlayerIds(MinecraftServer server, java.util.List<String> assigneeNames) {
+		if (assigneeNames == null || assigneeNames.isEmpty()) {
+			return new java.util.ArrayList<>();
 		}
-		ServerPlayerEntity target = server.getPlayerManager().getPlayer(assigneeName);
-		return target == null ? null : target.getUuid();
+		java.util.List<UUID> ids = new java.util.ArrayList<>();
+		for (String name : assigneeNames) {
+			ServerPlayerEntity target = server.getPlayerManager().getPlayer(name);
+			if (target != null) {
+				ids.add(target.getUuid());
+			}
+		}
+		return ids;
 	}
 
 	private static boolean canEdit(ProjectData project, ServerPlayerEntity player) {

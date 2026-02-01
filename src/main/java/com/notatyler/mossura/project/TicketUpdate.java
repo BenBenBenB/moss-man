@@ -9,8 +9,8 @@ public record TicketUpdate(
 		TicketPriority priority,
 		String type,
 		String state,
-		UUID assigneeId,
-		String assigneeName,
+		java.util.List<UUID> assigneeIds,
+		java.util.List<String> assigneeNames,
 		UUID sprintId,
 		java.util.List<String> labels
 ) {

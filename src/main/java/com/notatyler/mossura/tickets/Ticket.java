@@ -19,8 +19,8 @@ public class Ticket {
 	private TicketPriority priority;
 	private String type;
 	private String state;
-	private UUID assigneeId;
-	private String assigneeName;
+	private final List<UUID> assigneeIds = new ArrayList<>();
+	private final List<String> assigneeNames = new ArrayList<>();
 	private final long createdAt;
 	private UUID sprintId;
 	private boolean deleted;
@@ -30,7 +30,7 @@ public class Ticket {
 	private final List<Comment> comments = new ArrayList<>();
 	private final List<HistoryEntry> history = new ArrayList<>();
 
-	public Ticket(UUID id, int number, UUID creatorId, String creatorName, String title, String description, TicketPriority priority, String type, String state, UUID assigneeId, String assigneeName, long createdAt) {
+	public Ticket(UUID id, int number, UUID creatorId, String creatorName, String title, String description, TicketPriority priority, String type, String state, List<UUID> assigneeIds, List<String> assigneeNames, long createdAt) {
 		this.id = id;
 		this.number = number;
 		this.creatorId = creatorId;
@@ -40,13 +40,14 @@ public class Ticket {
 		this.priority = priority;
 		this.type = type;
 		this.state = state;
-		this.assigneeId = assigneeId;
-		this.assigneeName = assigneeName;
+		this.state = state;
+		if (assigneeIds != null) this.assigneeIds.addAll(assigneeIds);
+		if (assigneeNames != null) this.assigneeNames.addAll(assigneeNames);
 		this.createdAt = createdAt;
 	}
 
-	public static Ticket create(int number, UUID creatorId, String creatorName, String title, String description, TicketPriority priority, String type, String state, UUID assigneeId, String assigneeName, long createdAt) {
-		return new Ticket(UUID.randomUUID(), number, creatorId, creatorName, title, description, priority, type, state, assigneeId, assigneeName, createdAt);
+	public static Ticket create(int number, UUID creatorId, String creatorName, String title, String description, TicketPriority priority, String type, String state, List<UUID> assigneeIds, List<String> assigneeNames, long createdAt) {
+		return new Ticket(UUID.randomUUID(), number, creatorId, creatorName, title, description, priority, type, state, assigneeIds, assigneeNames, createdAt);
 	}
 
 	public UUID getId() {
@@ -105,20 +106,26 @@ public class Ticket {
 		this.state = state;
 	}
 
-	public UUID getAssigneeId() {
-		return assigneeId;
+	public List<UUID> getAssigneeIds() {
+		return Collections.unmodifiableList(assigneeIds);
 	}
 
-	public void setAssigneeId(UUID assigneeId) {
-		this.assigneeId = assigneeId;
+	public void setAssigneeIds(List<UUID> assigneeIds) {
+		this.assigneeIds.clear();
+		if (assigneeIds != null) {
+			this.assigneeIds.addAll(assigneeIds);
+		}
 	}
 
-	public String getAssigneeName() {
-		return assigneeName;
+	public List<String> getAssigneeNames() {
+		return Collections.unmodifiableList(assigneeNames);
 	}
 
-	public void setAssigneeName(String assigneeName) {
-		this.assigneeName = assigneeName;
+	public void setAssigneeNames(List<String> assigneeNames) {
+		this.assigneeNames.clear();
+		if (assigneeNames != null) {
+			this.assigneeNames.addAll(assigneeNames);
+		}
 	}
 
 	public long getCreatedAt() {
@@ -217,12 +224,23 @@ public class Ticket {
 		nbt.putString("priority", priority.name());
 		nbt.putString("type", type);
 		nbt.putString("state", state);
-		if (assigneeId != null) {
-			NbtUtil.putUuid(nbt, "assigneeId", assigneeId);
+		nbt.putString("type", type);
+		nbt.putString("state", state);
+		
+		NbtList assigneeIdList = new NbtList();
+		for (UUID uuid : assigneeIds) {
+			NbtCompound idNbt = new NbtCompound();
+			NbtUtil.putUuid(idNbt, "id", uuid);
+			assigneeIdList.add(idNbt);
 		}
-		if (assigneeName != null) {
-			nbt.putString("assigneeName", assigneeName);
+		nbt.put("assigneeIds", assigneeIdList);
+
+		NbtList assigneeNameList = new NbtList();
+		for (String name : assigneeNames) {
+			assigneeNameList.add(net.minecraft.nbt.NbtString.of(name));
 		}
+		nbt.put("assigneeNames", assigneeNameList);
+
 		nbt.putLong("createdAt", createdAt);
 		if (deleted) {
 			nbt.putBoolean("deleted", true);
@@ -278,10 +296,29 @@ public class Ticket {
 		}
 		String type = nbt.getString("type", "");
 		String state = nbt.getString("state", "");
-		UUID assigneeId = NbtUtil.getUuid(nbt, "assigneeId");
-		String assigneeName = nbt.contains("assigneeName") ? nbt.getString("assigneeName", "") : null;
+		
+		List<UUID> assigneeIds = new ArrayList<>();
+		NbtList ids = nbt.getListOrEmpty("assigneeIds");
+		for (int i = 0; i < ids.size(); i++) {
+			assigneeIds.add(NbtUtil.getUuid(ids.getCompoundOrEmpty(i), "id"));
+		}
+		// Migrating old format
+		if (assigneeIds.isEmpty() && nbt.contains("assigneeId")) {
+			assigneeIds.add(NbtUtil.getUuid(nbt, "assigneeId"));
+		}
+
+		List<String> assigneeNames = new ArrayList<>();
+		NbtList names = nbt.getListOrEmpty("assigneeNames");
+		for (int i = 0; i < names.size(); i++) {
+			assigneeNames.add(names.getString(i).orElse(""));
+		}
+		// Migrating old format
+		if (assigneeNames.isEmpty() && nbt.contains("assigneeName")) {
+			assigneeNames.add(nbt.getString("assigneeName").orElse(""));
+		}
+
 		long createdAt = nbt.getLong("createdAt", 0L);
-		Ticket ticket = new Ticket(id, number, creatorId, creatorName, title, description, priority, type, state, assigneeId, assigneeName, createdAt);
+		Ticket ticket = new Ticket(id, number, creatorId, creatorName, title, description, priority, type, state, assigneeIds, assigneeNames, createdAt);
 		ticket.sprintId = NbtUtil.getUuid(nbt, "sprintId");
 		ticket.deleted = nbt.getBoolean("deleted", false);
 		NbtList subtaskList = nbt.getListOrEmpty("subtasks");
