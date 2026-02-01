@@ -16,17 +16,18 @@
 	"environment": "*",
 	"entrypoints": {
 		"main": [
-          "com.example.Mossura"
+          "com.notatyler.mossura.Mossura"
 		],
 		"client": [
-			"com.example.client.MossuraClient"
+			"com.notatyler.mossura.client.MossuraClient"
 		]
 	},
 	"depends": {
 		"fabricloader": ">=0.18.2",
 		"minecraft": "~1.21.11",
 		"java": ">=21",
-		"fabric-api": "*"
+		"fabric-api": "*",
+		"mcef": "*"
 	},
 	"suggests": {
 		"another-mod": "*"
