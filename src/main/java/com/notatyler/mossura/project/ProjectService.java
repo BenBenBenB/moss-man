@@ -133,7 +133,8 @@ public class ProjectService {
 		ticket.addHistory(HistoryEntry.create(actorId, actorName, "update", "subtask_status", before, after, "subtask", subtask.getId(), timestamp));
 	}
 
-	public static void updateProjectSettings(ProjectData project, String name, String description, String ticketPrefix, List<String> statuses, List<String> ticketTypes) {
+	public static void updateProjectSettings(MinecraftServer server, ProjectData project, String name, String description, String ticketPrefix, List<String> statuses, List<String> ticketTypes, long timestamp) {
+		boolean wasNotExample = !project.getName().equals("EXAMPLE");
 		if (name != null && !name.isBlank()) {
 			project.setName(name);
 		}
@@ -148,6 +149,11 @@ public class ProjectService {
 		}
 		if (ticketTypes != null && !ticketTypes.isEmpty()) {
 			project.setTicketTypes(ticketTypes);
+		}
+		
+		// Auto-populate example data when renamed to EXAMPLE
+		if (wasNotExample && "EXAMPLE".equals(project.getName()) && project.getTickets().isEmpty()) {
+			populateExampleData(server, project, timestamp);
 		}
 	}
 
@@ -211,6 +217,65 @@ public class ProjectService {
 				}
 			}
 		}
+	}
+
+	private static void populateExampleData(MinecraftServer server, ProjectData project, long timestamp) {
+		UUID systemId = UUID.fromString("00000000-0000-0000-0000-000000000000");
+		String systemName = "System";
+		
+		// Create LV Age sprint
+		Sprint lvSprint = Sprint.create("LV Age Progression", timestamp, timestamp + (14L * 24 * 60 * 60 * 1000));
+		lvSprint.setStatus(Sprint.Status.ACTIVE);
+		project.addSprint(lvSprint);
+		
+		// Create example tickets for GregTech LV Age
+		Ticket t1 = createTicket(server, project, systemId, systemName,
+			"Craft Steel Ingots",
+			"Smelt iron dust with coal dust in the primitive blast furnace to produce steel ingots. You'll need at least 64 steel ingots for basic LV machines.",
+			TicketPriority.HIGH, "Story", "In Progress",
+			null, List.of(), timestamp);
+		t1.setSprintId(lvSprint.getId());
+		t1.addLabel("materials");
+		t1.addLabel("progression");
+		
+		Ticket t2 = createTicket(server, project, systemId, systemName,
+			"Craft LV Machine Hull",
+			"Combine steel plates with LV circuits to create the LV machine hull. This is the foundation for all LV-tier machines.",
+			TicketPriority.MEDIUM, "Task", "To Do",
+			null, List.of(), timestamp);
+		t2.setSprintId(lvSprint.getId());
+		t2.addLabel("crafting");
+		
+		Ticket t3 = createTicket(server, project, systemId, systemName,
+			"Build Electric Blast Furnace",
+			"Construct your first Electric Blast Furnace (EBF) using LV machine hulls and heating coils. This unlocks aluminum and titanium processing.",
+			TicketPriority.HIGH, "Quest", "To Do",
+			null, List.of(), timestamp);
+		t3.setSprintId(lvSprint.getId());
+		t3.addLabel("multiblock");
+		t3.addLabel("boss fight");
+		
+		Ticket t4 = createTicket(server, project, systemId, systemName,
+			"Automate Steam Production",
+			"Set up automated steam generation using solar boilers or coal-fired boilers to support your LV machines.",
+			TicketPriority.LOW, "Task", "Done",
+			null, List.of(), timestamp);
+		t4.setSprintId(lvSprint.getId());
+		t4.addLabel("automation");
+		
+		Ticket t5 = createTicket(server, project, systemId, systemName,
+			"Craft Basic Electronic Circuit",
+			"Assemble basic electronic circuits using resistors, vacuum tubes, and copper cables. Required for LV machine upgrades.",
+			TicketPriority.MEDIUM, "Task", "To Do",
+			null, List.of(), timestamp);
+		t5.setSprintId(lvSprint.getId());
+		t5.addLabel("crafting");
+		t5.addLabel("resources");
+		
+		// Add subtasks to the EBF quest
+		addSubtask(t3, systemId, systemName, "Gather 32 Steel Ingots", "Mine and process iron to create steel ingots", timestamp);
+		addSubtask(t3, systemId, systemName, "Craft Heating Coils", "Create cupronickel heating coils for the EBF", timestamp);
+		addSubtask(t3, systemId, systemName, "Assemble Multiblock", "Place blocks in 3x3x4 structure and validate with wrench", timestamp);
 	}
 
 	private static void applyFieldChange(String before, String after, String field, UUID actorId, String actorName, Ticket ticket, long timestamp, java.util.function.Consumer<String> setter) {

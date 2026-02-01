@@ -330,7 +330,7 @@ public class MossuraWebServer {
                 String name = payload.has("name") ? payload.get("name").getAsString() : null;
                 String description = payload.has("description") ? payload.get("description").getAsString() : null;
                 String ticketPrefix = payload.has("ticketPrefix") ? payload.get("ticketPrefix").getAsString() : null;
-                ProjectService.updateProjectSettings(project, name, description, ticketPrefix, null, null);
+                ProjectService.updateProjectSettings(server, project, name, description, ticketPrefix, null, null, System.currentTimeMillis());
                 
                 if (payload.has("isPublic")) {
                     ProjectService.updateProjectPublic(project, payload.get("isPublic").getAsBoolean());

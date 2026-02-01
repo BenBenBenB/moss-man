@@ -228,7 +228,7 @@ public class MossuraNetwork {
 					player.sendMessage(Text.literal("Only the project owner or admins can update settings."), false);
 					return;
 				}
-				ProjectService.updateProjectSettings(project, payload.name(), payload.description(), payload.ticketPrefix(), payload.statuses(), payload.ticketTypes());
+				ProjectService.updateProjectSettings(context.server(), project, payload.name(), payload.description(), payload.ticketPrefix(), payload.statuses(), payload.ticketTypes(), context.server().getOverworld().getTime());
 				markAndSync(context.server(), project);
 			});
 		});

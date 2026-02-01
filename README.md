@@ -9,7 +9,7 @@ Mossura is a powerful project management and collaboration mod for Minecraft 1.2
 -   **Sprint Management**: Plan iterations, set dates, and track progress with built-in sprint support.
 -   **Ticket System**: Create tickets with titles, descriptions, priorities, labels, and subtasks.
 -   **Team Collaboration**: Add members to your projects with granular permissions (Owner, Admin, Editor, Viewer).
--   **Real-time Notifications**: Get notified when you are assigned to a ticket or when someone comments on your tasks.
+-   **Real-time Notifications**: Get notified in game when you are assigned to a ticket or when someone comments on your tasks.
 -   **Web Server Interface**: Access your projects from your phone or desktop browser with a secure token-based authentication system.
 
 ## 🌐 Web Interface
