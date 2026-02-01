@@ -20,6 +20,6 @@ public class ProjectSettingsScreen extends MossuraMcefScreen {
 		if (project == null) {
 			return MossuraUiState.loadingState("settings");
 		}
-		return MossuraUiState.projectSettingsState(project, getViewerId(), getViewerName());
+		return MossuraUiState.projectSettingsState(project, getViewerId(), getViewerName(), System.currentTimeMillis(), getWorldTicks());
 	}
 }

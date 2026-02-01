@@ -35,6 +35,10 @@ public abstract class MossuraMcefHandledScreen<T extends ScreenHandler> extends 
 		browserView.setState(buildState());
 	}
 
+	protected long getWorldTicks() {
+		return client != null && client.world != null ? client.world.getTime() : -1L;
+	}
+
 	@Override
 	public void refreshUiState() {
 		pushState();

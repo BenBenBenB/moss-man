@@ -12,6 +12,9 @@
   let projectsList = [];
   let authStatus = { authenticated: false };
   let authRequestToken = null;
+  let dragState = null;
+  let suppressNextClick = false;
+  let pointerDragBound = false;
 
   const escapeHtml = (value) => {
     if (value === null || value === undefined) return '';
@@ -21,6 +24,27 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
+  };
+
+  const pad2 = (value) => String(value).padStart(2, '0');
+
+  const normalizeToMinute = (timestamp) => {
+    const date = new Date(timestamp);
+    date.setSeconds(0, 0);
+    return date.getTime();
+  };
+
+  const toLocalDateTimeInput = (timestamp) => {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    if (Number.isNaN(date.getTime())) return '';
+    return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}T${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+  };
+
+  const parseLocalDateTimeInput = (value) => {
+    if (!value) return NaN;
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? NaN : parsed.getTime();
   };
 
   const sendAction = async (action, payload = {}) => {
@@ -50,6 +74,13 @@
   };
 
   const isWebMode = () => !window.cefQuery;
+
+  const forceRepaint = () => {
+    const prev = app.style.transform;
+    app.style.transform = 'translateZ(0)';
+    void app.offsetHeight;
+    app.style.transform = prev;
+  };
 
   const getProjectIdFromUrl = () => {
     const hash = window.location.hash.replace('#', '').trim();
@@ -216,7 +247,7 @@
           <div class="card sprint-card">
             <h3>Active Sprint</h3>
             <strong>${escapeHtml(activeSprint.name)}</strong>
-            <small>${new Date(activeSprint.endTime).toLocaleDateString()}</small>
+            <small>${new Date(activeSprint.endTime).toLocaleString()}</small>
           </div>
         ` : ''}
         <div class="card">
@@ -294,7 +325,7 @@
               <div class="column-title">${escapeHtml(status)}</div>
               ${stack.length
           ? stack.map((ticket) => `
-                    <div class="ticket-card" draggable="true" data-role="draggable-ticket" data-ticket-id="${ticket.id}" data-action="open-ticket">
+                    <div class="ticket-card" draggable="${isWebMode() ? 'true' : 'false'}" data-role="draggable-ticket" data-ticket-id="${ticket.id}" data-action="open-ticket">
                       <strong>
                         #${ticket.number} ${escapeHtml(ticket.title)}
                         ${uiState.canEdit ? `<span class="edit-link" data-action="edit-ticket-direct" data-ticket-id="${ticket.id}" title="Edit Ticket">✎</span>` : ''}
@@ -392,6 +423,24 @@
     `;
   };
 
+  const renderCommentItems = (comments, emptyLabel = 'No comments yet.') => {
+    const list = Array.isArray(comments) ? comments : [];
+    if (!list.length) {
+      return `<div class="list-item">${escapeHtml(emptyLabel)}</div>`;
+    }
+    return list.map((c) => `
+      <div class="list-item comment-item">
+        <img src="https://mc-heads.net/avatar/${escapeHtml(c.authorName)}/32" class="comment-avatar" />
+        <div class="comment-content">
+          <div class="comment-header">
+            <strong>${escapeHtml(c.authorName)}</strong> <small>${new Date(c.createdAt).toLocaleString()}</small>
+          </div>
+          <p>${escapeHtml(c.message)}</p>
+        </div>
+      </div>
+    `).join('');
+  };
+
   const renderTicket = () => {
     const ticket = uiState.ticket || {};
     const project = uiState.project || {};
@@ -440,7 +489,10 @@
               <div class="detail-card">
                 <h3>Subtasks</h3>
                 <div class="list">
-                  ${subtasks.length ? subtasks.map((s) => `
+                  ${subtasks.length ? subtasks.map((s) => {
+      const commentCount = (s.comments || []).length;
+      const commentLabel = commentCount ? `Comments (${commentCount})` : 'Comment';
+      return `
                     <div class="subtask-row">
                       ${isMember ? `<button class="ghost-btn" data-action="toggle-subtask" data-subtask-id="${s.id}" data-completed="${s.completed}">${s.completed ? '[x]' : '[ ]'}</button>` : '<span class="subtask-toggle">' + (s.completed ? '[x]' : '[ ]') + '</span>'}
                       <span>${escapeHtml(s.name)}</span>
@@ -449,27 +501,18 @@
                           <button class="ghost-btn" data-action="edit-subtask" data-subtask-id="${s.id}">Edit</button>
                         </div>
                       ` : ''}
-                      ${isMember ? `<button class="ghost-btn" data-action="comment-subtask" data-subtask-id="${s.id}">Comment</button>` : ''}
+                      ${isMember ? `<button class="ghost-btn" data-action="comment-subtask" data-subtask-id="${s.id}">${escapeHtml(commentLabel)}</button>` : ''}
                     </div>
-                  `).join('') : '<div class="list-item">No subtasks yet.</div>'}
+                  `;
+    }).join('') : '<div class="list-item">No subtasks yet.</div>'}
                 </div>
               </div>
             </div>
             <div class="detail-grid">
               <div class="detail-card">
                 <h3>Comments</h3>
-                <div class="list">
-                  ${comments.length ? comments.map((c) => `
-                    <div class="list-item comment-item">
-                      <img src="https://mc-heads.net/avatar/${escapeHtml(c.authorName)}/32" class="comment-avatar" />
-                      <div class="comment-content">
-                        <div class="comment-header">
-                          <strong>${escapeHtml(c.authorName)}</strong> <small>${new Date(c.createdAt).toLocaleString()}</small>
-                        </div>
-                        <p>${escapeHtml(c.message)}</p>
-                      </div>
-                    </div>
-                  `).join('') : '<div class="list-item">No comments yet.</div>'}
+                <div class="list comment-list">
+                  ${renderCommentItems(comments)}
                 </div>
               </div>
               <div class="detail-card">
@@ -832,12 +875,18 @@
     }
 
     if (activeModal.type === 'subtask-comment') {
+      const ticket = uiState.ticket || {};
+      const subtask = (ticket.subtasks || []).find((s) => s.id === activeModal.subtaskId) || {};
+      const comments = subtask.comments || [];
       return `
         <div class="modal-backdrop" data-role="modal-backdrop">
           <form class="modal" data-role="subtask-comment-form" data-ticket-id="${activeModal.ticketId}" data-subtask-id="${activeModal.subtaskId}">
             <div class="modal-header">
               <h3>Subtask Comment</h3>
               <button type="button" class="modal-close" data-action="close-modal">x</button>
+            </div>
+            <div class="list comment-list">
+              ${renderCommentItems(comments, 'No subtask comments yet.')}
             </div>
             <div class="field-group">
               <label>Comment</label>
@@ -853,6 +902,8 @@
     }
 
     if (activeModal.type === 'sprint-new') {
+      const defaultStart = normalizeToMinute(Date.now());
+      const defaultEnd = normalizeToMinute(defaultStart + (14 * 24 * 60 * 60 * 1000));
       return `
         <div class="modal-backdrop" data-role="modal-backdrop">
           <form class="modal" data-role="sprint-form">
@@ -865,8 +916,12 @@
               <input data-field="name" type="text" placeholder="e.g. Iteration 1" required />
             </div>
             <div class="field-group">
-              <label>Duration (weeks)</label>
-              <input data-field="weeks" type="number" value="2" min="1" max="12" />
+              <label>Start</label>
+              <input data-field="startTime" type="datetime-local" value="${toLocalDateTimeInput(defaultStart)}" required />
+            </div>
+            <div class="field-group">
+              <label>End</label>
+              <input data-field="endTime" type="datetime-local" value="${toLocalDateTimeInput(defaultEnd)}" required />
             </div>
             <div class="modal-actions">
               <button type="button" class="btn secondary" data-action="close-modal">Cancel</button>
@@ -879,6 +934,12 @@
 
     if (activeModal.type === 'sprint-edit') {
       const sprint = activeModal.sprint || {};
+      const now = normalizeToMinute(Date.now());
+      const startValue = sprint.startTime && sprint.startTime > 0 ? normalizeToMinute(sprint.startTime) : now;
+      let endValue = sprint.endTime && sprint.endTime > 0 ? normalizeToMinute(sprint.endTime) : normalizeToMinute(startValue + (14 * 24 * 60 * 60 * 1000));
+      if (endValue <= startValue) {
+        endValue = normalizeToMinute(startValue + (14 * 24 * 60 * 60 * 1000));
+      }
       return `
         <div class="modal-backdrop" data-role="modal-backdrop">
           <form class="modal" data-role="sprint-edit-form" data-sprint-id="${sprint.id}">
@@ -889,6 +950,14 @@
             <div class="field-group">
               <label>Name</label>
               <input data-field="name" type="text" value="${escapeHtml(sprint.name)}" required />
+            </div>
+            <div class="field-group">
+              <label>Start</label>
+              <input data-field="startTime" type="datetime-local" value="${toLocalDateTimeInput(startValue)}" required />
+            </div>
+            <div class="field-group">
+              <label>End</label>
+              <input data-field="endTime" type="datetime-local" value="${toLocalDateTimeInput(endValue)}" required />
             </div>
             <div class="field-group">
               <label>Status</label>
@@ -933,7 +1002,104 @@
     return '';
   };
 
+  const bindPointerDrag = () => {
+    if (pointerDragBound) return;
+    pointerDragBound = true;
+
+    const clearDragState = () => {
+      if (!dragState) return;
+      if (dragState.origin) {
+        dragState.origin.classList.remove('dragging');
+      }
+      if (dragState.ghost && dragState.ghost.parentNode) {
+        dragState.ghost.parentNode.removeChild(dragState.ghost);
+      }
+      if (dragState.dropzone) {
+        dragState.dropzone.classList.remove('drag-over');
+      }
+      dragState = null;
+    };
+
+    const updateDropzone = (clientX, clientY) => {
+      const target = document.elementFromPoint(clientX, clientY);
+      const nextZone = target ? target.closest('[data-role="dropzone"]') : null;
+      if (nextZone !== dragState.dropzone) {
+        if (dragState.dropzone) dragState.dropzone.classList.remove('drag-over');
+        if (nextZone) nextZone.classList.add('drag-over');
+        dragState.dropzone = nextZone;
+      }
+    };
+
+    app.addEventListener('pointerdown', (event) => {
+      if (isWebMode()) return;
+      if (event.button !== 0) return;
+      if (event.target.closest('[data-action="edit-ticket-direct"]')) return;
+      const ticketEl = event.target.closest('[data-role="draggable-ticket"]');
+      if (!ticketEl) return;
+      dragState = {
+        ticketId: ticketEl.dataset.ticketId,
+        origin: ticketEl,
+        startX: event.clientX,
+        startY: event.clientY,
+        pointerId: event.pointerId,
+        offsetX: 0,
+        offsetY: 0,
+        dragging: false,
+        dropzone: null,
+        ghost: null
+      };
+      if (ticketEl.setPointerCapture) {
+        ticketEl.setPointerCapture(event.pointerId);
+      }
+    });
+
+    window.addEventListener('pointermove', (event) => {
+      if (!dragState || dragState.pointerId !== event.pointerId) return;
+      const deltaX = event.clientX - dragState.startX;
+      const deltaY = event.clientY - dragState.startY;
+      if (!dragState.dragging) {
+        if (Math.hypot(deltaX, deltaY) < 6) return;
+        dragState.dragging = true;
+        dragState.origin.classList.add('dragging');
+        const rect = dragState.origin.getBoundingClientRect();
+        dragState.offsetX = dragState.startX - rect.left;
+        dragState.offsetY = dragState.startY - rect.top;
+        const ghost = dragState.origin.cloneNode(true);
+        ghost.classList.add('drag-ghost');
+        ghost.style.width = `${rect.width}px`;
+        ghost.style.height = `${rect.height}px`;
+        dragState.ghost = ghost;
+        document.body.appendChild(ghost);
+      }
+      if (dragState.ghost) {
+        dragState.ghost.style.transform = `translate(${event.clientX - dragState.offsetX}px, ${event.clientY - dragState.offsetY}px)`;
+      }
+      updateDropzone(event.clientX, event.clientY);
+    });
+
+    const finishDrag = (event) => {
+      if (!dragState || (event && dragState.pointerId !== event.pointerId)) return;
+      const wasDragging = dragState.dragging;
+      const ticketId = dragState.ticketId;
+      const status = dragState.dropzone ? dragState.dropzone.dataset.status : null;
+      clearDragState();
+      if (wasDragging) {
+        suppressNextClick = true;
+        if (ticketId && status) {
+          sendAction('update-ticket', { ticketId, state: status });
+        }
+      }
+    };
+
+    window.addEventListener('pointerup', finishDrag);
+    window.addEventListener('pointercancel', finishDrag);
+  };
+
   const initDragAndDrop = () => {
+    bindPointerDrag();
+    if (!isWebMode()) {
+      return;
+    }
     const draggables = app.querySelectorAll('[data-role="draggable-ticket"]');
     const zones = app.querySelectorAll('[data-role="dropzone"]');
 
@@ -1018,10 +1184,13 @@
 
     const sprintFilter = app.querySelector('[data-role="sprint-filter"]');
     if (sprintFilter) {
+      const repaintLater = () => requestAnimationFrame(forceRepaint);
       sprintFilter.addEventListener('change', (e) => {
         selectedSprintId = e.target.value;
         render();
+        repaintLater();
       });
+      sprintFilter.addEventListener('blur', repaintLater);
     }
 
     const labelFilters = app.querySelectorAll('[data-role="label-filter"]');
@@ -1048,6 +1217,10 @@
   });
 
   app.addEventListener('click', (event) => {
+    if (suppressNextClick) {
+      suppressNextClick = false;
+      return;
+    }
     const actionEl = event.target.closest('[data-action]');
     if (!actionEl) return;
     const action = actionEl.dataset.action;
@@ -1063,7 +1236,16 @@
       return;
     }
     if (action === 'back') {
-      setScreen(null);
+      if (isWebMode()) {
+        setScreen(null);
+      } else {
+        const screen = resolveScreen();
+        if (screen === 'ticket') {
+          sendAction('back');
+        } else {
+          setScreen(null);
+        }
+      }
       return;
     }
     if (action === 'close-modal') {
@@ -1316,9 +1498,19 @@
     if (form.matches('[data-role="sprint-form"]')) {
       event.preventDefault();
       const name = form.querySelector('[data-field="name"]').value.trim();
-      const weeks = parseInt(form.querySelector('[data-field="weeks"]').value) || 2;
-      const startTime = Date.now();
-      const endTime = startTime + (weeks * 7 * 24 * 60 * 60 * 1000);
+      const startRaw = form.querySelector('[data-field="startTime"]').value;
+      const endRaw = form.querySelector('[data-field="endTime"]').value;
+      let startTime = parseLocalDateTimeInput(startRaw);
+      if (!Number.isFinite(startTime)) {
+        startTime = Date.now();
+      }
+      let endTime = parseLocalDateTimeInput(endRaw);
+      if (!Number.isFinite(endTime)) {
+        endTime = startTime + (14 * 24 * 60 * 60 * 1000);
+      }
+      if (endTime <= startTime) {
+        endTime = startTime + (14 * 24 * 60 * 60 * 1000);
+      }
       sendAction('create-sprint', { name, startTime, endTime });
       closeModal();
       return;
@@ -1329,10 +1521,23 @@
       const sprintId = form.dataset.sprintId;
       const name = form.querySelector('[data-field="name"]').value.trim();
       const status = form.querySelector('[data-field="status"]').value;
+      const startRaw = form.querySelector('[data-field="startTime"]').value;
+      const endRaw = form.querySelector('[data-field="endTime"]').value;
       const project = uiState.project || {};
       const sprint = (project.sprints || []).find(s => s.id === sprintId);
       if (sprint) {
-        sendAction('update-sprint', { sprintId, name, status, startTime: sprint.startTime, endTime: sprint.endTime });
+        let startTime = parseLocalDateTimeInput(startRaw);
+        if (!Number.isFinite(startTime)) {
+          startTime = sprint.startTime;
+        }
+        let endTime = parseLocalDateTimeInput(endRaw);
+        if (!Number.isFinite(endTime)) {
+          endTime = sprint.endTime;
+        }
+        if (endTime <= startTime) {
+          endTime = startTime + (14 * 24 * 60 * 60 * 1000);
+        }
+        sendAction('update-sprint', { sprintId, name, status, startTime, endTime });
       }
       closeModal();
       return;

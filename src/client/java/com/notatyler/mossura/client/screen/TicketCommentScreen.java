@@ -26,9 +26,11 @@ public class TicketCommentScreen extends MossuraMcefScreen {
 			return MossuraUiState.loadingState("ticket-comment");
 		}
 		Ticket ticket = project.findTicket(ticketId);
+		long nowMillis = System.currentTimeMillis();
+		long worldTicks = getWorldTicks();
 		if (ticket == null) {
-			return MossuraUiState.screenState("ticket-comment", project, getViewerId(), getViewerName());
+			return MossuraUiState.screenState("ticket-comment", project, getViewerId(), getViewerName(), nowMillis, worldTicks);
 		}
-		return MossuraUiState.ticketCommentState(project, ticket, getViewerId(), getViewerName());
+		return MossuraUiState.ticketCommentState(project, ticket, getViewerId(), getViewerName(), nowMillis, worldTicks);
 	}
 }

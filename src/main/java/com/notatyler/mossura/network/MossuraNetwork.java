@@ -38,7 +38,7 @@ public class MossuraNetwork {
 					return;
 				}
 				java.util.List<UUID> assigneeIds = resolvePlayerIds(context.server(), payload.assigneeNames());
-				Ticket ticket = ProjectService.createTicket(context.server(), project, player.getUuid(), player.getName().getString(), payload.title(), payload.description(), payload.priority(), payload.type(), payload.state(), assigneeIds, payload.assigneeNames(), context.server().getOverworld().getTime());
+				Ticket ticket = ProjectService.createTicket(context.server(), project, player.getUuid(), player.getName().getString(), payload.title(), payload.description(), payload.priority(), payload.type(), payload.state(), assigneeIds, payload.assigneeNames(), System.currentTimeMillis());
 				if (payload.sprintId() != null) {
 					ticket.setSprintId(payload.sprintId());
 				}
@@ -71,7 +71,7 @@ public class MossuraNetwork {
 				}
 				java.util.List<UUID> assigneeIds = resolvePlayerIds(context.server(), payload.assigneeNames());
 				TicketUpdate update = new TicketUpdate(payload.title(), payload.description(), payload.priority(), payload.type(), payload.state(), assigneeIds, payload.assigneeNames(), payload.sprintId(), payload.labels());
-				ProjectService.updateTicket(context.server(), project, ticket, player.getUuid(), player.getName().getString(), update, context.server().getOverworld().getTime());
+				ProjectService.updateTicket(context.server(), project, ticket, player.getUuid(), player.getName().getString(), update, System.currentTimeMillis());
 				markAndSync(context.server(), project);
 			});
 		});
@@ -92,7 +92,7 @@ public class MossuraNetwork {
 					player.sendMessage(Text.literal("Ticket not found."), false);
 					return;
 				}
-				ProjectService.deleteTicket(project, ticket, player.getUuid(), player.getName().getString(), context.server().getOverworld().getTime());
+				ProjectService.deleteTicket(project, ticket, player.getUuid(), player.getName().getString(), System.currentTimeMillis());
 				markAndSync(context.server(), project);
 			});
 		});
@@ -118,7 +118,7 @@ public class MossuraNetwork {
 					player.sendMessage(Text.literal("Subtask not found."), false);
 					return;
 				}
-				ProjectService.updateSubtask(ticket, subtask, player.getUuid(), player.getName().getString(), payload.name(), payload.description(), context.server().getOverworld().getTime());
+				ProjectService.updateSubtask(ticket, subtask, player.getUuid(), player.getName().getString(), payload.name(), payload.description(), System.currentTimeMillis());
 				markAndSync(context.server(), project);
 			});
 		});
@@ -144,7 +144,7 @@ public class MossuraNetwork {
 					player.sendMessage(Text.literal("Subtask not found."), false);
 					return;
 				}
-				ProjectService.setSubtaskCompleted(ticket, subtask, player.getUuid(), player.getName().getString(), payload.completed(), context.server().getOverworld().getTime());
+				ProjectService.setSubtaskCompleted(ticket, subtask, player.getUuid(), player.getName().getString(), payload.completed(), System.currentTimeMillis());
 				markAndSync(context.server(), project);
 			});
 		});
@@ -165,7 +165,7 @@ public class MossuraNetwork {
 					player.sendMessage(Text.literal("Ticket not found."), false);
 					return;
 				}
-				ProjectService.addTicketComment(ticket, player.getUuid(), player.getName().getString(), payload.message(), context.server().getOverworld().getTime());
+				ProjectService.addTicketComment(ticket, player.getUuid(), player.getName().getString(), payload.message(), System.currentTimeMillis());
 				markAndSync(context.server(), project);
 			});
 		});
@@ -186,7 +186,7 @@ public class MossuraNetwork {
 					player.sendMessage(Text.literal("Ticket not found."), false);
 					return;
 				}
-				ProjectService.addSubtask(ticket, player.getUuid(), player.getName().getString(), payload.name(), payload.description(), context.server().getOverworld().getTime());
+				ProjectService.addSubtask(ticket, player.getUuid(), player.getName().getString(), payload.name(), payload.description(), System.currentTimeMillis());
 				markAndSync(context.server(), project);
 			});
 		});
@@ -212,7 +212,7 @@ public class MossuraNetwork {
 					player.sendMessage(Text.literal("Subtask not found."), false);
 					return;
 				}
-				ProjectService.addSubtaskComment(ticket, subtask, player.getUuid(), player.getName().getString(), payload.message(), context.server().getOverworld().getTime());
+				ProjectService.addSubtaskComment(ticket, subtask, player.getUuid(), player.getName().getString(), payload.message(), System.currentTimeMillis());
 				markAndSync(context.server(), project);
 			});
 		});
@@ -228,7 +228,8 @@ public class MossuraNetwork {
 					player.sendMessage(Text.literal("Only the project owner or admins can update settings."), false);
 					return;
 				}
-				ProjectService.updateProjectSettings(context.server(), project, payload.name(), payload.description(), payload.ticketPrefix(), payload.statuses(), payload.ticketTypes(), context.server().getOverworld().getTime());
+				ProjectService.updateProjectSettings(context.server(), project, payload.name(), payload.description(), payload.ticketPrefix(), payload.statuses(), payload.ticketTypes(), System.currentTimeMillis());
+				ProjectService.updateProjectPublic(project, payload.isPublic());
 				markAndSync(context.server(), project);
 			});
 		});

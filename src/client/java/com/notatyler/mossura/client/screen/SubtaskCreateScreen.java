@@ -26,9 +26,11 @@ public class SubtaskCreateScreen extends MossuraMcefScreen {
 			return MossuraUiState.loadingState("subtask-new");
 		}
 		Ticket ticket = project.findTicket(ticketId);
+		long nowMillis = System.currentTimeMillis();
+		long worldTicks = getWorldTicks();
 		if (ticket == null) {
-			return MossuraUiState.screenState("subtask-new", project, getViewerId(), getViewerName());
+			return MossuraUiState.screenState("subtask-new", project, getViewerId(), getViewerName(), nowMillis, worldTicks);
 		}
-		return MossuraUiState.subtaskState(project, ticket, null, "subtask-new", getViewerId(), getViewerName());
+		return MossuraUiState.subtaskState(project, ticket, null, "subtask-new", getViewerId(), getViewerName(), nowMillis, worldTicks);
 	}
 }

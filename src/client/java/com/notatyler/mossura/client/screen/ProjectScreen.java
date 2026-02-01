@@ -55,8 +55,10 @@ public class ProjectScreen extends MossuraMcefHandledScreen<ProjectScreenHandler
 		if (latest == null) {
 			return MossuraUiState.loadingState("project");
 		}
-		net.minecraft.client.network.ClientPlayerEntity player = net.minecraft.client.MinecraftClient.getInstance().player;
-		return MossuraUiState.projectState(latest, player == null ? null : player.getUuid(), player == null ? null : player.getName().getString());
+		net.minecraft.client.MinecraftClient mc = net.minecraft.client.MinecraftClient.getInstance();
+		net.minecraft.client.network.ClientPlayerEntity player = mc.player;
+		long worldTicks = getWorldTicks();
+		return MossuraUiState.projectState(latest, player == null ? null : player.getUuid(), player == null ? null : player.getName().getString(), System.currentTimeMillis(), worldTicks);
 	}
 
 	@Override
@@ -176,7 +178,8 @@ public class ProjectScreen extends MossuraMcefHandledScreen<ProjectScreenHandler
 		String ticketPrefix = readString(payload, "ticketPrefix", latest.getTicketPrefix());
 		List<String> statuses = readStringList(payload, "statuses", latest.getStatuses());
 		List<String> types = readStringList(payload, "ticketTypes", latest.getTicketTypes());
-		ClientPlayNetworking.send(new MossuraPayloads.UpdateProjectSettingsPayload(handler.getProjectId(), name, description, ticketPrefix, statuses, types));
+		boolean isPublic = payload.has("isPublic") ? payload.get("isPublic").getAsBoolean() : latest.isPublic();
+		ClientPlayNetworking.send(new MossuraPayloads.UpdateProjectSettingsPayload(handler.getProjectId(), name, description, ticketPrefix, statuses, types, isPublic));
 		ClientPlayNetworking.send(new MossuraPayloads.RequestProjectSyncPayload(handler.getProjectId()));
 		return true;
 	}

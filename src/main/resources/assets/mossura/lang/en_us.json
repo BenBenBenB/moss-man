@@ -1,5 +1,7 @@
 {
   "block.mossura.project_block": "Project Block",
+  "item.mossura.project_block": "Project Block",
+  "item.mossura.projectblock": "Project Block",
   "item.mossura.wireless_project_access": "Wireless Project Access",
   "entity.minecraft.villager.mossura.scrum_master": "Scrum Master"
 }
