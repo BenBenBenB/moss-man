@@ -37,6 +37,10 @@ public abstract class MossuraMcefScreen extends Screen implements MossuraUiActio
 		return client != null && client.player != null ? client.player.getName().getString() : "Guest";
 	}
 
+	protected long getWorldTicks() {
+		return client != null && client.world != null ? client.world.getTime() : -1L;
+	}
+
 	protected void pushState() {
 		browserView.setState(buildState());
 	}

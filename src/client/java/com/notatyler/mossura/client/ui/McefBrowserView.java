@@ -10,6 +10,7 @@ import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
+import org.lwjgl.glfw.GLFW;
 
 public class McefBrowserView {
 	private static final Gson GSON = new Gson();
@@ -26,6 +27,7 @@ public class McefBrowserView {
 	private boolean initFailed;
 	private String pendingStateJson;
 	private boolean needsInject;
+	private boolean suppressNextEnterChar;
 
 	public McefBrowserView(String url, boolean transparent) {
 		this.url = url;
@@ -137,6 +139,10 @@ public class McefBrowserView {
 			return false;
 		}
 		browser.sendKeyPress(key, scancode, modifiers);
+		if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) {
+			browser.sendKeyTyped('\n', modifiers);
+			suppressNextEnterChar = true;
+		}
 		browser.setFocus(true);
 		return true;
 	}
@@ -146,6 +152,9 @@ public class McefBrowserView {
 			return false;
 		}
 		browser.sendKeyRelease(key, scancode, modifiers);
+		if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) {
+			suppressNextEnterChar = false;
+		}
 		browser.setFocus(true);
 		return true;
 	}
@@ -157,6 +166,11 @@ public class McefBrowserView {
 		if (codepoint == 0) {
 			return false;
 		}
+		if (suppressNextEnterChar && (codepoint == '\n' || codepoint == '\r')) {
+			suppressNextEnterChar = false;
+			return true;
+		}
+		suppressNextEnterChar = false;
 		browser.sendKeyTyped((char) codepoint, modifiers);
 		browser.setFocus(true);
 		return true;

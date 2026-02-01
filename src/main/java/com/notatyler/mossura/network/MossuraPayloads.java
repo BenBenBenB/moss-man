@@ -268,7 +268,7 @@ public final class MossuraPayloads {
 		}
 	}
 
-	public record UpdateProjectSettingsPayload(UUID projectId, String name, String description, String ticketPrefix, List<String> statuses, List<String> ticketTypes) implements CustomPayload {
+	public record UpdateProjectSettingsPayload(UUID projectId, String name, String description, String ticketPrefix, List<String> statuses, List<String> ticketTypes, boolean isPublic) implements CustomPayload {
 		public static final Id<UpdateProjectSettingsPayload> ID = new Id<>(Identifier.of(Mossura.MOD_ID, "update_project_settings"));
 		public static final PacketCodec<RegistryByteBuf, UpdateProjectSettingsPayload> CODEC = PacketCodec.ofStatic(UpdateProjectSettingsPayload::write, UpdateProjectSettingsPayload::read);
 
@@ -284,7 +284,8 @@ public final class MossuraPayloads {
 			String ticketPrefix = buf.readString(16);
 			List<String> statuses = readStringList(buf, 64);
 			List<String> types = readStringList(buf, 64);
-			return new UpdateProjectSettingsPayload(projectId, name, description, ticketPrefix, statuses, types);
+			boolean isPublic = buf.readBoolean();
+			return new UpdateProjectSettingsPayload(projectId, name, description, ticketPrefix, statuses, types, isPublic);
 		}
 
 		private static void write(RegistryByteBuf buf, UpdateProjectSettingsPayload payload) {
@@ -294,6 +295,7 @@ public final class MossuraPayloads {
 			buf.writeString(payload.ticketPrefix, 16);
 			writeStringList(buf, payload.statuses);
 			writeStringList(buf, payload.ticketTypes);
+			buf.writeBoolean(payload.isPublic);
 		}
 	}
 

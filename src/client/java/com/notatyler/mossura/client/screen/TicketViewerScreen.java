@@ -29,13 +29,14 @@ public class TicketViewerScreen extends MossuraMcefScreen {
 			return MossuraUiState.loadingState("ticket");
 		}
 		Ticket ticket = project.findTicket(ticketId);
-		net.minecraft.client.network.ClientPlayerEntity player = net.minecraft.client.MinecraftClient.getInstance().player;
-		UUID pid = player == null ? null : player.getUuid();
-		String pName = player == null ? null : player.getName().getString();
+		UUID pid = getViewerId();
+		String pName = getViewerName();
+		long nowMillis = System.currentTimeMillis();
+		long worldTicks = getWorldTicks();
 		if (ticket == null) {
-			return MossuraUiState.screenState("ticket", project, pid, pName);
+			return MossuraUiState.screenState("ticket", project, pid, pName, nowMillis, worldTicks);
 		}
-		return MossuraUiState.ticketState(project, ticket, pid, pName);
+		return MossuraUiState.ticketState(project, ticket, pid, pName, nowMillis, worldTicks);
 	}
 
 	@Override
@@ -50,8 +51,17 @@ public class TicketViewerScreen extends MossuraMcefScreen {
 			case "update-subtask" -> handleUpdateSubtask(payload);
 			case "add-subtask-comment" -> handleSubtaskComment(payload);
 			case "toggle-subtask" -> handleToggleSubtask(payload);
+			case "back" -> handleBack();
 			default -> false;
 		};
+	}
+
+	private boolean handleBack() {
+		if (client != null) {
+			client.setScreen(parent);
+			return true;
+		}
+		return false;
 	}
 
 	private boolean handleUpdateTicket(JsonObject payload) {

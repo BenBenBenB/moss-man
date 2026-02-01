@@ -232,7 +232,7 @@ public class MossuraWebServer {
         }
 
         private boolean handleAction(ProjectData project, String action, com.google.gson.JsonObject payload, UUID actorId, String actorName) {
-            long time = server.getOverworld().getTime();
+            long time = System.currentTimeMillis();
             if ("create-ticket".equals(action)) {
                 String title = payload.get("title").getAsString();
                 String desc = payload.has("description") ? payload.get("description").getAsString() : "";
@@ -323,6 +323,15 @@ public class MossuraWebServer {
                 ProjectService.addSprint(project, name, start, end);
                 return true;
             }
+            if ("update-sprint".equals(action)) {
+                UUID sprintId = UUID.fromString(payload.get("sprintId").getAsString());
+                String name = payload.get("name").getAsString();
+                long start = payload.get("startTime").getAsLong();
+                long end = payload.get("endTime").getAsLong();
+                com.notatyler.mossura.project.Sprint.Status status = com.notatyler.mossura.project.Sprint.Status.valueOf(payload.get("status").getAsString());
+                ProjectService.updateSprint(project, sprintId, name, start, end, status);
+                return true;
+            }
             if ("update-project-settings".equals(action)) {
                 if (!project.getOwnerId().equals(actorId) && project.getMembersMap().get(actorId).getPermissionLevel() != com.notatyler.mossura.project.Member.PermissionLevel.ADMIN) {
                     return false;
@@ -375,7 +384,9 @@ public class MossuraWebServer {
                     }
                 }
 
-                String json = MossuraUiState.projectState(project, playerUuid, playerName).toString();
+                long nowMillis = System.currentTimeMillis();
+                long worldTicks = server.getOverworld().getTime();
+                String json = MossuraUiState.projectState(project, playerUuid, playerName, nowMillis, worldTicks).toString();
                 byte[] response = json.getBytes(StandardCharsets.UTF_8);
                 exchange.getResponseHeaders().set("Content-Type", "application/json");
                 exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");

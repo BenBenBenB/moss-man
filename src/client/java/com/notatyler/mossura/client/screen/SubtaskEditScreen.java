@@ -28,14 +28,16 @@ public class SubtaskEditScreen extends MossuraMcefScreen {
 		if (project == null) {
 			return MossuraUiState.loadingState("subtask-edit");
 		}
+		long nowMillis = System.currentTimeMillis();
+		long worldTicks = getWorldTicks();
 		Ticket ticket = project.findTicket(ticketId);
 		if (ticket == null) {
-			return MossuraUiState.screenState("subtask-edit", project, getViewerId(), getViewerName());
+			return MossuraUiState.screenState("subtask-edit", project, getViewerId(), getViewerName(), nowMillis, worldTicks);
 		}
 		Subtask subtask = ticket.findSubtask(subtaskId);
 		if (subtask == null) {
-			return MossuraUiState.screenState("subtask-edit", project, getViewerId(), getViewerName());
+			return MossuraUiState.screenState("subtask-edit", project, getViewerId(), getViewerName(), nowMillis, worldTicks);
 		}
-		return MossuraUiState.subtaskState(project, ticket, subtask, "subtask-edit", getViewerId(), getViewerName());
+		return MossuraUiState.subtaskState(project, ticket, subtask, "subtask-edit", getViewerId(), getViewerName(), nowMillis, worldTicks);
 	}
 }

@@ -34,6 +34,6 @@ public class TicketEditorScreen extends MossuraMcefScreen {
 			return MossuraUiState.loadingState(ticketId == null ? "ticket-new" : "ticket-edit");
 		}
 		Ticket ticket = ticketId == null ? null : project.findTicket(ticketId);
-		return MossuraUiState.ticketEditorState(project, ticket, getViewerId(), getViewerName());
+		return MossuraUiState.ticketEditorState(project, ticket, getViewerId(), getViewerName(), System.currentTimeMillis(), getWorldTicks());
 	}
 }

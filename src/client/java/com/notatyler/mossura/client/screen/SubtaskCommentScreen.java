@@ -28,14 +28,16 @@ public class SubtaskCommentScreen extends MossuraMcefScreen {
 		if (project == null) {
 			return MossuraUiState.loadingState("subtask-comment");
 		}
+		long nowMillis = System.currentTimeMillis();
+		long worldTicks = getWorldTicks();
 		Ticket ticket = project.findTicket(ticketId);
 		if (ticket == null) {
-			return MossuraUiState.screenState("subtask-comment", project, getViewerId(), getViewerName());
+			return MossuraUiState.screenState("subtask-comment", project, getViewerId(), getViewerName(), nowMillis, worldTicks);
 		}
 		Subtask subtask = ticket.findSubtask(subtaskId);
 		if (subtask == null) {
-			return MossuraUiState.screenState("subtask-comment", project, getViewerId(), getViewerName());
+			return MossuraUiState.screenState("subtask-comment", project, getViewerId(), getViewerName(), nowMillis, worldTicks);
 		}
-		return MossuraUiState.subtaskState(project, ticket, subtask, "subtask-comment", getViewerId(), getViewerName());
+		return MossuraUiState.subtaskState(project, ticket, subtask, "subtask-comment", getViewerId(), getViewerName(), nowMillis, worldTicks);
 	}
 }

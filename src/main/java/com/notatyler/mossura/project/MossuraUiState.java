@@ -9,6 +9,9 @@ import java.util.Map;
 import java.util.UUID;
 
 public final class MossuraUiState {
+	private static final long EPOCH_MS_THRESHOLD = 1_000_000_000_000L;
+	private static final long TICK_TO_MS = 50L;
+
 	private MossuraUiState() {
 	}
 
@@ -20,43 +23,85 @@ public final class MossuraUiState {
 	}
 
 	public static JsonObject projectState(ProjectData project, UUID viewerId, String viewerName) {
-		JsonObject root = buildState("project", project, null, null);
+		JsonObject root = buildState("project", project, null, null, System.currentTimeMillis(), -1L);
+		applyPermissions(root, project, viewerId, viewerName);
+		return root;
+	}
+
+	public static JsonObject projectState(ProjectData project, UUID viewerId, String viewerName, long nowMillis, long worldTicks) {
+		JsonObject root = buildState("project", project, null, null, nowMillis, worldTicks);
 		applyPermissions(root, project, viewerId, viewerName);
 		return root;
 	}
 
 	public static JsonObject screenState(String screen, ProjectData project, UUID viewerId, String viewerName) {
-		JsonObject root = buildState(screen, project, null, null);
+		JsonObject root = buildState(screen, project, null, null, System.currentTimeMillis(), -1L);
+		applyPermissions(root, project, viewerId, viewerName);
+		return root;
+	}
+
+	public static JsonObject screenState(String screen, ProjectData project, UUID viewerId, String viewerName, long nowMillis, long worldTicks) {
+		JsonObject root = buildState(screen, project, null, null, nowMillis, worldTicks);
 		applyPermissions(root, project, viewerId, viewerName);
 		return root;
 	}
 
 	public static JsonObject ticketState(ProjectData project, Ticket ticket, UUID viewerId, String viewerName) {
-		JsonObject root = buildState("ticket", project, ticket, null);
+		JsonObject root = buildState("ticket", project, ticket, null, System.currentTimeMillis(), -1L);
+		applyPermissions(root, project, viewerId, viewerName);
+		return root;
+	}
+
+	public static JsonObject ticketState(ProjectData project, Ticket ticket, UUID viewerId, String viewerName, long nowMillis, long worldTicks) {
+		JsonObject root = buildState("ticket", project, ticket, null, nowMillis, worldTicks);
 		applyPermissions(root, project, viewerId, viewerName);
 		return root;
 	}
 
 	public static JsonObject ticketEditorState(ProjectData project, Ticket ticket, UUID viewerId, String viewerName) {
-		JsonObject root = buildState(ticket == null ? "ticket-new" : "ticket-edit", project, ticket, null);
+		JsonObject root = buildState(ticket == null ? "ticket-new" : "ticket-edit", project, ticket, null, System.currentTimeMillis(), -1L);
+		applyPermissions(root, project, viewerId, viewerName);
+		return root;
+	}
+
+	public static JsonObject ticketEditorState(ProjectData project, Ticket ticket, UUID viewerId, String viewerName, long nowMillis, long worldTicks) {
+		JsonObject root = buildState(ticket == null ? "ticket-new" : "ticket-edit", project, ticket, null, nowMillis, worldTicks);
 		applyPermissions(root, project, viewerId, viewerName);
 		return root;
 	}
 
 	public static JsonObject projectSettingsState(ProjectData project, UUID viewerId, String viewerName) {
-		JsonObject root = buildState("settings", project, null, null);
+		JsonObject root = buildState("settings", project, null, null, System.currentTimeMillis(), -1L);
+		applyPermissions(root, project, viewerId, viewerName);
+		return root;
+	}
+
+	public static JsonObject projectSettingsState(ProjectData project, UUID viewerId, String viewerName, long nowMillis, long worldTicks) {
+		JsonObject root = buildState("settings", project, null, null, nowMillis, worldTicks);
 		applyPermissions(root, project, viewerId, viewerName);
 		return root;
 	}
 
 	public static JsonObject ticketCommentState(ProjectData project, Ticket ticket, UUID viewerId, String viewerName) {
-		JsonObject root = buildState("ticket-comment", project, ticket, null);
+		JsonObject root = buildState("ticket-comment", project, ticket, null, System.currentTimeMillis(), -1L);
+		applyPermissions(root, project, viewerId, viewerName);
+		return root;
+	}
+
+	public static JsonObject ticketCommentState(ProjectData project, Ticket ticket, UUID viewerId, String viewerName, long nowMillis, long worldTicks) {
+		JsonObject root = buildState("ticket-comment", project, ticket, null, nowMillis, worldTicks);
 		applyPermissions(root, project, viewerId, viewerName);
 		return root;
 	}
 
 	public static JsonObject subtaskState(ProjectData project, Ticket ticket, Subtask subtask, String screen, UUID viewerId, String viewerName) {
-		JsonObject root = buildState(screen, project, ticket, subtask);
+		JsonObject root = buildState(screen, project, ticket, subtask, System.currentTimeMillis(), -1L);
+		applyPermissions(root, project, viewerId, viewerName);
+		return root;
+	}
+
+	public static JsonObject subtaskState(ProjectData project, Ticket ticket, Subtask subtask, String screen, UUID viewerId, String viewerName, long nowMillis, long worldTicks) {
+		JsonObject root = buildState(screen, project, ticket, subtask, nowMillis, worldTicks);
 		applyPermissions(root, project, viewerId, viewerName);
 		return root;
 	}
@@ -77,25 +122,25 @@ public final class MossuraUiState {
 		root.addProperty("playerName", viewerName == null ? "Guest" : viewerName);
 	}
 
-	private static JsonObject buildState(String screen, ProjectData project, Ticket ticket, Subtask subtask) {
+	private static JsonObject buildState(String screen, ProjectData project, Ticket ticket, Subtask subtask, long nowMillis, long worldTicks) {
 		JsonObject root = new JsonObject();
 		root.addProperty("screen", screen);
-		root.addProperty("updatedAt", System.currentTimeMillis());
+		root.addProperty("updatedAt", nowMillis);
 		if (project != null) {
-			root.add("project", projectToJson(project));
+			root.add("project", projectToJson(project, nowMillis, worldTicks));
 		} else {
 			root.addProperty("loading", true);
 		}
 		if (ticket != null) {
-			root.add("ticket", ticketToJson(ticket));
+			root.add("ticket", ticketToJson(ticket, nowMillis, worldTicks));
 		}
 		if (subtask != null) {
-			root.add("subtask", subtaskToJson(subtask));
+			root.add("subtask", subtaskToJson(subtask, nowMillis, worldTicks));
 		}
 		return root;
 	}
 
-	private static JsonObject projectToJson(ProjectData project) {
+	private static JsonObject projectToJson(ProjectData project, long nowMillis, long worldTicks) {
 		JsonObject obj = new JsonObject();
 		obj.addProperty("id", project.getId().toString());
 		obj.addProperty("name", project.getName());
@@ -117,8 +162,15 @@ public final class MossuraUiState {
 			JsonObject sprintJson = new JsonObject();
 			sprintJson.addProperty("id", sprint.getId().toString());
 			sprintJson.addProperty("name", sprint.getName());
-			sprintJson.addProperty("startTime", sprint.getStartTime());
-			sprintJson.addProperty("endTime", sprint.getEndTime());
+			long startTime = sprint.getStartTime();
+			long endTime = sprint.getEndTime();
+			long normalizedStart = normalizeTimestamp(startTime, nowMillis, worldTicks);
+			long normalizedEnd = normalizeTimestamp(endTime, nowMillis, worldTicks);
+			if (isLikelyTickTimestamp(startTime, worldTicks) && !isLikelyTickTimestamp(endTime, worldTicks) && endTime > startTime && endTime < EPOCH_MS_THRESHOLD) {
+				normalizedEnd = normalizedStart + (endTime - startTime);
+			}
+			sprintJson.addProperty("startTime", normalizedStart);
+			sprintJson.addProperty("endTime", normalizedEnd);
 			sprintJson.addProperty("status", sprint.getStatus().name());
 			sprints.add(sprintJson);
 		}
@@ -138,14 +190,14 @@ public final class MossuraUiState {
 			if (ticket.isDeleted()) {
 				continue;
 			}
-			tickets.add(ticketToJson(ticket));
+			tickets.add(ticketToJson(ticket, nowMillis, worldTicks));
 		}
 		obj.add("tickets", tickets);
 		obj.addProperty("ticketCount", tickets.size());
 		return obj;
 	}
 
-	private static JsonObject ticketToJson(Ticket ticket) {
+	private static JsonObject ticketToJson(Ticket ticket, long nowMillis, long worldTicks) {
 		JsonObject obj = new JsonObject();
 		obj.addProperty("id", ticket.getId().toString());
 		obj.addProperty("number", ticket.getNumber());
@@ -164,18 +216,18 @@ public final class MossuraUiState {
 		obj.addProperty("assigneeName", ticket.getAssigneeNames().isEmpty() ? "" : ticket.getAssigneeNames().get(0));
 		
 		obj.addProperty("creatorName", ticket.getCreatorName());
-		obj.addProperty("createdAt", ticket.getCreatedAt());
+		obj.addProperty("createdAt", normalizeTimestamp(ticket.getCreatedAt(), nowMillis, worldTicks));
 		if (ticket.getSprintId() != null) {
 			obj.addProperty("sprintId", ticket.getSprintId().toString());
 		}
 		JsonArray subtasks = new JsonArray();
 		for (Subtask subtask : ticket.getSubtasks()) {
-			subtasks.add(subtaskToJson(subtask));
+			subtasks.add(subtaskToJson(subtask, nowMillis, worldTicks));
 		}
 		obj.add("subtasks", subtasks);
 		JsonArray comments = new JsonArray();
 		for (Comment comment : ticket.getComments()) {
-			comments.add(commentToJson(comment));
+			comments.add(commentToJson(comment, nowMillis, worldTicks));
 		}
 		obj.add("comments", comments);
 		JsonArray labels = new JsonArray();
@@ -192,35 +244,50 @@ public final class MossuraUiState {
 			entryJson.addProperty("field", entry.getField());
 			entryJson.addProperty("before", entry.getBeforeValue());
 			entryJson.addProperty("after", entry.getAfterValue());
-			entryJson.addProperty("timestamp", entry.getTimestamp());
+			entryJson.addProperty("timestamp", normalizeTimestamp(entry.getTimestamp(), nowMillis, worldTicks));
 			history.add(entryJson);
 		}
 		obj.add("history", history);
 		return obj;
 	}
 
-	private static JsonObject subtaskToJson(Subtask subtask) {
+	private static JsonObject subtaskToJson(Subtask subtask, long nowMillis, long worldTicks) {
 		JsonObject obj = new JsonObject();
 		obj.addProperty("id", subtask.getId().toString());
 		obj.addProperty("name", subtask.getName());
 		obj.addProperty("description", subtask.getDescription());
 		obj.addProperty("creatorName", subtask.getCreatorName());
-		obj.addProperty("createdAt", subtask.getCreatedAt());
+		obj.addProperty("createdAt", normalizeTimestamp(subtask.getCreatedAt(), nowMillis, worldTicks));
 		obj.addProperty("completed", subtask.isCompleted());
 		JsonArray comments = new JsonArray();
 		for (Comment comment : subtask.getComments()) {
-			comments.add(commentToJson(comment));
+			comments.add(commentToJson(comment, nowMillis, worldTicks));
 		}
 		obj.add("comments", comments);
 		return obj;
 	}
 
-	private static JsonObject commentToJson(Comment comment) {
+	private static JsonObject commentToJson(Comment comment, long nowMillis, long worldTicks) {
 		JsonObject obj = new JsonObject();
 		obj.addProperty("id", comment.getId().toString());
 		obj.addProperty("authorName", comment.getAuthorName());
 		obj.addProperty("message", comment.getMessage());
-		obj.addProperty("createdAt", comment.getCreatedAt());
+		obj.addProperty("createdAt", normalizeTimestamp(comment.getCreatedAt(), nowMillis, worldTicks));
 		return obj;
+	}
+
+	private static boolean isLikelyTickTimestamp(long timestamp, long worldTicks) {
+		return timestamp >= 0 && timestamp < EPOCH_MS_THRESHOLD && worldTicks >= 0 && timestamp <= worldTicks;
+	}
+
+	private static long normalizeTimestamp(long timestamp, long nowMillis, long worldTicks) {
+		if (!isLikelyTickTimestamp(timestamp, worldTicks)) {
+			return timestamp;
+		}
+		long deltaTicks = worldTicks - timestamp;
+		if (deltaTicks < 0) {
+			return timestamp;
+		}
+		return nowMillis - (deltaTicks * TICK_TO_MS);
 	}
 }
