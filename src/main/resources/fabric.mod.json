@@ -1,33 +1,32 @@
 {
 	"schemaVersion": 1,
-	"id": "mossura",
+	"id": "mossman",
 	"version": "${version}",
-	"name": "Mossura",
-	"description": "Ticking tool for minecraft",
+	"name": "MossMan",
+	"description": "Ticket tracking tool inspired by agile software development",
 	"authors": [
 		"TylerTheDev",
 		"BenBenB"
 	],
 	"contact": {
-		"sources": "https://github.com/Not-a-Tyler/Mossura"
+		"sources": "https://github.com/BenBenBenB/moss-man"
 	},
 	"license": "CC0-1.0",
-	"icon": "assets/mossura/icon.png",
+	"icon": "assets/mossman/icon.png",
 	"environment": "*",
 	"entrypoints": {
 		"main": [
-          "com.notatyler.mossura.Mossura"
+			"TBD"
 		],
 		"client": [
-			"com.notatyler.mossura.client.MossuraClient"
+			"TBD"
 		]
 	},
 	"depends": {
 		"fabricloader": ">=0.18.2",
 		"minecraft": "~1.21.11",
 		"java": ">=21",
-		"fabric-api": "*",
-		"mcef": "*"
+		"fabric-api": "*"
 	},
 	"suggests": {
 		"another-mod": "*"
