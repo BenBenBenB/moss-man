@@ -5,6 +5,7 @@ This directory contains documentation specifically structured for AI agents to u
 ## Directory Structure
 
 - **`architecture.md`**: High-level system design and architecture.
+- **`datamodels.md`**: Definition of core resources (Project, Ticket, etc.).
 - **`standards.md`**: Coding standards for Java GUI and backend.
 - **`workflows/`**: Step-by-step guides (e.g., adding a new screen).
 - **`knowledge/`**: Documented tribal knowledge and technical "gotchas".

@@ -1,36 +1,15 @@
-# Mossura 🌿
+# MossMan 🌿
 
-Mossura is a powerful project management and collaboration mod for Minecraft 1.21.1, designed to bring agile workflows directly into your world. Whether you're building a massive base with friends or managing a complex modpack project, Mossura helps you stay organized.
+MossMan is a modular, native project management mod for Minecraft, designed to bring agile workflows directly into your world. Built for Fabric 1.21.1, it provides a robust platform for tracking tickets, projects, and sprints without external browser dependencies in-game.
 
 ## 🚀 Key Features
 
--   **Project Blocks**: Physical workstations that anchor your project data.
--   **Kanban Board**: A full-featured web-based Kanban board integrated directly into Minecraft (via MCEF) or accessible through your external browser.
--   **Sprint Management**: Plan iterations, set dates, and track progress with built-in sprint support.
--   **Ticket System**: Create tickets with titles, descriptions, priorities, labels, and subtasks.
--   **Team Collaboration**: Add members to your projects with granular permissions (Owner, Admin, Editor, Viewer).
--   **Real-time Notifications**: Get notified in game when you are assigned to a ticket or when someone comments on your tasks.
--   **Web Server Interface**: Access your projects from your phone or desktop browser with a secure token-based authentication system.
-
-## 🌐 Web Interface
-
-Mossura includes a lightweight web server that runs alongside your Minecraft server.
-
--   **Browser Access**: Navigate to `http://localhost:8080` (or your server's IP) to view your projects.
--   **Project Switcher**: Easily switch between all projects you own or are a member of.
--   **Auto-Sync**: The web view automatically refreshes to keep you up-to-date with ingame changes.
-
-## 🔑 Authentication
-
-To access your projects via an external browser, you must verify your identity:
-1. Open the web view.
-2. Observe the 6-character token provided in the login modal.
-3. In Minecraft, run: `/mossura verify <TOKEN>`
-4. Your browser session will be securely linked to your Minecraft account.
-
-## 🛠️ Commands
-
--   `/mossura verify <token>`: Links your current web browser session to your Minecraft account.
+-   **Modular Core**: Designed as a foundational API for extensible project tracking.
+-   **Native Native UI**: High-performance, Minecraft-native GUIs for all project interactions.
+-   **Agile Toolset**: Full support for Projects, Tickets, Sprints, and Relationships (Needs/Is Needed By).
+-   **Collaborative Permissions**: Granular roles (Owner, Admin, Editor, Creator, Viewer).
+-   **Observer System**: Get notified of updates to tickets you care about.
+-   **RESTful Design**: Built from the ground up to support future external integrations and web APIs.
 
 ## 📦 Requirements
 
@@ -38,8 +17,10 @@ To access your projects via an external browser, you must verify your identity:
 -   **Loader**: Fabric
 -   **Dependencies**:
     -   Fabric API
-    -   MCEF (Minecraft Chromium Embedded Framework) - *Used for ingame UI rendering*
 
-## 📜 License
+## 📜 Documentation
 
-This project is licensed under the MIT License.
+For more detailed information, see the `.agent/` directory:
+- [Architecture](.agent/architecture.md)
+- [Data Models](.agent/datamodels.md)
+- [Coding Standards](.agent/standards.md)

@@ -23,7 +23,7 @@ loom {
 	splitEnvironmentSourceSets()
 
 	mods {
-		"modid" {
+		"mossman" {
 			sourceSet sourceSets.main
 			sourceSet sourceSets.client
 		}
@@ -39,10 +39,6 @@ dependencies {
 
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-
-	// MCEF (Keksuccino fork) for Chromium-based UI rendering.
-	modImplementation "curse.maven:mcef-keksuccino-1366156:7437149"
-	
 }
 
 processResources {
