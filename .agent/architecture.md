@@ -18,6 +18,9 @@ MossMan is designed as a **Core-First** project. The `moss-man-core` mod provide
 - **Purpose**: Fast, native ticket interaction using Minecraft's `Screen` API.
 - **Consumer**: Acts as a client of the API layer, ensuring the same logic is used as any future Web UI.
 
+### 4. User Identity Layer
+To support `online-mode=false` servers, the system must maintain a mapping between Minecraft UUIDs and Usernames. In offline mode, the username is considered the source of truth for the local UUID derivation.
+
 
 ### Java Backend
 - **Entrypoints**: (Current TBD in `fabric.mod.json`).
