@@ -40,6 +40,11 @@ dependencies {
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
+	// OrmLite for persistence
+	implementation 'com.j256.ormlite:ormlite-core:6.1'
+	implementation 'com.j256.ormlite:ormlite-jdbc:6.1'
+	implementation 'org.xerial:sqlite-jdbc:3.45.1.0'
+
 	testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'
 	testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
