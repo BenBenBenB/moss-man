@@ -1,0 +1,15 @@
+{
+  "mossman.command.project.list.header": "--- MossMan Projects ---",
+  "mossman.command.project.list.footer": "------------------------",
+  "mossman.command.project.create_btn": "[Create New Project]",
+  "mossman.command.project.create_hover": "Click to create a new project",
+  "mossman.command.project.view_hover": "Click to view project details",
+  
+  "mossman.command.ticket.list.header": "--- Project: %s ---",
+  "mossman.command.ticket.list.footer": "------------------------",
+  "mossman.command.ticket.create_btn": "[Create Ticket]",
+  "mossman.command.ticket.create_hover": "Click to create a new ticket",
+  "mossman.command.ticket.back_btn": "[Back to Projects]",
+  "mossman.command.ticket.back_hover": "Return to project list",
+  "mossman.command.ticket.view_hover": "Click to view ticket details"
+}

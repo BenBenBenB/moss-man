@@ -1,0 +1,27 @@
+{
+    "schemaVersion": 1,
+    "id": "mossman",
+    "version": "${version}",
+    "name": "MossMan",
+    "description": "An in-game issue tracker and project management mod.",
+    "authors": [
+        "BenB"
+    ],
+    "contact": {
+        "homepage": "https://github.com/BenBenBenB/moss-man",
+        "sources": "https://github.com/BenBenBenB/moss-man"
+    },
+    "license": "MIT",
+    "icon": "assets/mossman/icon.png",
+    "environment": "*",
+    "entrypoints": {
+        "main": [
+            "com.mossman.MossManMod"
+        ]
+    },
+    "depends": {
+        "fabricloader": ">=0.18.3",
+        "minecraft": ">=1.21.11",
+        "fabric-api": "*"
+    }
+}

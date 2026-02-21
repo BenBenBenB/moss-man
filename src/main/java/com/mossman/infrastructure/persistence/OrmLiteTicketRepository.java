@@ -61,9 +61,10 @@ public class OrmLiteTicketRepository implements TicketRepository {
     @Override
     public int getNextTicketNumber(long projectId) {
         try {
-            // Very simple implementation: count + 1. 
-            // In a real system, we'd want a separate counter table or a max() query.
-            long count = ticketDao.countOf(ticketDao.queryBuilder().where().eq("projectId", projectId).prepare());
+            var qb = ticketDao.queryBuilder();
+            qb.setCountOf(true);
+            qb.where().eq("projectId", projectId);
+            long count = ticketDao.countOf(qb.prepare());
             return (int) (count + 1);
         } catch (SQLException e) {
             throw new RuntimeException("Failed to get next ticket number", e);
