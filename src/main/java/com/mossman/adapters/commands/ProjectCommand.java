@@ -4,13 +4,15 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.tree.LiteralCommandNode;
+import com.mossman.adapters.tui.NbtPatchParser;
 import com.mossman.adapters.tui.TuiHelper;
+import com.mossman.MossManMod;
+import net.minecraft.command.argument.NbtCompoundArgumentType;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
-import com.mossman.MossManMod;
 
 public class ProjectCommand {
 
@@ -27,6 +29,10 @@ public class ProjectCommand {
                 .then(CommandManager.literal("delete")
                         .then(CommandManager.argument("prefix", StringArgumentType.word())
                                 .executes(ProjectCommand::deleteProject)))
+                .then(CommandManager.literal("update")
+                        .then(CommandManager.argument("prefix", StringArgumentType.word())
+                                .then(CommandManager.argument("patch", NbtCompoundArgumentType.nbtCompound())
+                                        .executes(ProjectCommand::updateProject))))
                 .build();
 
         rootNode.addChild(projectNode);
@@ -142,6 +148,31 @@ public class ProjectCommand {
             return 1;
         } catch (Exception e) {
             source.sendMessage(Text.literal("Failed to delete project: " + e.getMessage()).formatted(Formatting.RED));
+            return 0;
+        }
+    }
+
+    private static int updateProject(CommandContext<ServerCommandSource> context) {
+        ServerCommandSource source = context.getSource();
+        String prefix = StringArgumentType.getString(context, "prefix");
+        var nbt = NbtCompoundArgumentType.getNbtCompound(context, "patch");
+
+        var projectOpt = MossManMod.getProjectRepository().findAll().stream()
+                .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix))
+                .findFirst();
+
+        if (projectOpt.isEmpty()) {
+            source.sendMessage(Text.literal("Project not found: " + prefix).formatted(Formatting.RED));
+            return 0;
+        }
+
+        try {
+            var patch = NbtPatchParser.toMap(nbt);
+            var updated = MossManMod.getUpdateProjectUseCase().execute(projectOpt.get().getId(), patch);
+            source.sendMessage(Text.literal("Updated project [" + updated.getTicketPrefix() + "]: " + updated.getName()).formatted(Formatting.GREEN));
+            return 1;
+        } catch (Exception e) {
+            source.sendMessage(Text.literal("Failed to update project: " + e.getMessage()).formatted(Formatting.RED));
             return 0;
         }
     }

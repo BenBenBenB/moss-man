@@ -15,6 +15,7 @@ public class MethodFinder {
         for (Class<?> c : HoverEvent.class.getDeclaredClasses()) {
             sb.append(c.getSimpleName()).append(",");
         }
-        throw new RuntimeException("WANTED: " + sb.toString());
+        //throw new RuntimeException("WANTED: " + sb.toString());
+        // keeping around for posible future debug
     }
 }

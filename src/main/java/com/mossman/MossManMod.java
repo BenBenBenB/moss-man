@@ -14,11 +14,11 @@ import com.mossman.infrastructure.persistence.OrmLiteProjectRepository;
 import com.mossman.infrastructure.persistence.OrmLiteTicketRepository;
 import com.mossman.domain.usecases.CreateProjectUseCase;
 import com.mossman.domain.usecases.CreateTicketUseCase;
+import com.mossman.domain.usecases.UpdateTicketUseCase;
+import com.mossman.domain.usecases.UpdateProjectUseCase;
 
 import java.io.File;
 import java.sql.SQLException;
-
-import com.mossman.infrastructure.config.ConfigManager;
 
 public class MossManMod implements ModInitializer {
     public static final String MOD_ID = "mossman";
@@ -28,6 +28,8 @@ public class MossManMod implements ModInitializer {
     private static SimpleEventBus eventBus;
     private static CreateProjectUseCase createProjectUseCase;
     private static CreateTicketUseCase createTicketUseCase;
+    private static UpdateTicketUseCase updateTicketUseCase;
+    private static UpdateProjectUseCase updateProjectUseCase;
     private static OrmLiteProjectRepository projectRepository;
     private static OrmLiteTicketRepository ticketRepository;
 
@@ -48,6 +50,8 @@ public class MossManMod implements ModInitializer {
             
             createProjectUseCase = new CreateProjectUseCase(projectRepository, eventBus);
             createTicketUseCase = new CreateTicketUseCase(ticketRepository, eventBus);
+            updateTicketUseCase = new UpdateTicketUseCase(ticketRepository, eventBus);
+            updateProjectUseCase = new UpdateProjectUseCase(projectRepository, eventBus);
             LOGGER.info("Database and Use Cases initialized successfully.");
         } catch (SQLException e) {
             LOGGER.error("Failed to initialize Database Manager", e);
@@ -63,19 +67,10 @@ public class MossManMod implements ModInitializer {
         }
     }
 
-    public static CreateProjectUseCase getCreateProjectUseCase() {
-        return createProjectUseCase;
-    }
-
-    public static CreateTicketUseCase getCreateTicketUseCase() {
-        return createTicketUseCase;
-    }
-
-    public static OrmLiteProjectRepository getProjectRepository() {
-        return projectRepository;
-    }
-
-    public static OrmLiteTicketRepository getTicketRepository() {
-        return ticketRepository;
-    }
+    public static CreateProjectUseCase getCreateProjectUseCase() { return createProjectUseCase; }
+    public static CreateTicketUseCase getCreateTicketUseCase() { return createTicketUseCase; }
+    public static UpdateTicketUseCase getUpdateTicketUseCase() { return updateTicketUseCase; }
+    public static UpdateProjectUseCase getUpdateProjectUseCase() { return updateProjectUseCase; }
+    public static OrmLiteProjectRepository getProjectRepository() { return projectRepository; }
+    public static OrmLiteTicketRepository getTicketRepository() { return ticketRepository; }
 }

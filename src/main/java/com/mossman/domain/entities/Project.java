@@ -63,7 +63,7 @@ public class Project {
         private List<TicketType> ticketTypes = new ArrayList<>();
         private List<RelationshipType> relationshipTypes = new ArrayList<>();
         private List<Member> members = new ArrayList<>();
-        private Permission externalUserPermission = Permission.NONE;
+        private Permission externalUserPermission = Permission.FORBID;
         private String textColor;
 
         public Builder id(long id) { this.id = id; return this; }

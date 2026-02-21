@@ -4,6 +4,7 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.tree.LiteralCommandNode;
+import com.mossman.adapters.tui.NbtPatchParser;
 import com.mossman.adapters.tui.TuiHelper;
 import com.mossman.domain.query.TicketFilter;
 import net.minecraft.command.argument.NbtCompoundArgumentType;
@@ -37,6 +38,10 @@ public class TicketCommand {
                         .then(CommandManager.argument("key", StringArgumentType.word())
                                 .then(CommandManager.argument("newStatus", StringArgumentType.word())
                                         .executes(TicketCommand::updateStatus))))
+                .then(CommandManager.literal("update")
+                        .then(CommandManager.argument("key", StringArgumentType.word())
+                                .then(CommandManager.argument("patch", NbtCompoundArgumentType.nbtCompound())
+                                        .executes(TicketCommand::updateTicket))))
                 .then(CommandManager.literal("comment")
                         .then(CommandManager.argument("key", StringArgumentType.word())
                                 .then(CommandManager.argument("message", StringArgumentType.greedyString())
@@ -160,7 +165,7 @@ public class TicketCommand {
         source.sendMessage(Text.literal("--- Ticket: " + key + " ---").formatted(Formatting.AQUA));
         source.sendMessage(Text.literal("Title: " + ticket.getTitle()).formatted(Formatting.WHITE));
         source.sendMessage(Text.literal("Status: " + ticket.getStatus()).formatted(Formatting.YELLOW));
-        source.sendMessage(Text.literal("Priority: " + (ticket.getPriority() != null ? ticket.getPriority().name() : "NONE")).formatted(Formatting.WHITE));
+        source.sendMessage(Text.literal("Priority: " + (ticket.getPriority() != null ? ticket.getPriority().name() : "FORBID")).formatted(Formatting.WHITE));
         source.sendMessage(Text.literal("Description: " + (ticket.getDescription() != null ? ticket.getDescription() : "None")).formatted(Formatting.GRAY));
 
         MutableText updateBtn = TuiHelper.createSuggestLink(
@@ -273,5 +278,53 @@ public class TicketCommand {
         String message = StringArgumentType.getString(context, "message");
         source.sendMessage(Text.literal("Added comment to " + key + " (Comments not yet persisted)").formatted(Formatting.YELLOW));
         return 1;
+    }
+
+    private static int updateTicket(CommandContext<ServerCommandSource> context) {
+        ServerCommandSource source = context.getSource();
+        String key = StringArgumentType.getString(context, "key");
+        var nbt = NbtCompoundArgumentType.getNbtCompound(context, "patch");
+
+        String[] parts = key.split("-");
+        if (parts.length != 2) {
+            source.sendMessage(Text.literal("Invalid ticket key format. Expected PREFIX-NUMBER").formatted(Formatting.RED));
+            return 0;
+        }
+        String prefix = parts[0];
+        int number;
+        try { number = Integer.parseInt(parts[1]); }
+        catch (NumberFormatException e) {
+            source.sendMessage(Text.literal("Invalid ticket number.").formatted(Formatting.RED));
+            return 0;
+        }
+
+        var projectOpt = com.mossman.MossManMod.getProjectRepository().findAll().stream()
+                .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix))
+                .findFirst();
+
+        if (projectOpt.isEmpty()) {
+            source.sendMessage(Text.literal("Project not found: " + prefix).formatted(Formatting.RED));
+            return 0;
+        }
+
+        var ticketOpt = com.mossman.MossManMod.getTicketRepository()
+                .findByProjectId(projectOpt.get().getId()).stream()
+                .filter(t -> t.getTicketNumber() == number)
+                .findFirst();
+
+        if (ticketOpt.isEmpty()) {
+            source.sendMessage(Text.literal("Ticket not found: " + key).formatted(Formatting.RED));
+            return 0;
+        }
+
+        try {
+            var patch = NbtPatchParser.toMap(nbt);
+            var updated = com.mossman.MossManMod.getUpdateTicketUseCase().execute(ticketOpt.get().getId(), patch);
+            source.sendMessage(Text.literal("Updated ticket " + updated.getUserFriendlyKey(prefix) + ": " + updated.getTitle()).formatted(Formatting.GREEN));
+            return 1;
+        } catch (Exception e) {
+            source.sendMessage(Text.literal("Failed to update ticket: " + e.getMessage()).formatted(Formatting.RED));
+            return 0;
+        }
     }
 }

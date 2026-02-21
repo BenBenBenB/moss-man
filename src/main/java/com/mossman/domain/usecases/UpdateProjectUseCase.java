@@ -1,0 +1,61 @@
+package com.mossman.domain.usecases;
+
+import com.mossman.domain.entities.Permission;
+import com.mossman.domain.entities.Project;
+import com.mossman.domain.events.DomainEventBus;
+import com.mossman.domain.repositories.ProjectRepository;
+
+import java.util.Map;
+
+/**
+ * Applies a partial update (patch) to a project using a String->String map of field values.
+ * Only fields present in the patch map are changed; all others are left as-is.
+ * The caller (command layer) is responsible for parsing SNBT into the map.
+ *
+ * Patchable fields: name, description, iconTexture, textColor, externalUserPermission
+ */
+public class UpdateProjectUseCase {
+    private final ProjectRepository projectRepository;
+    private final DomainEventBus eventBus;
+
+    public UpdateProjectUseCase(ProjectRepository projectRepository, DomainEventBus eventBus) {
+        this.projectRepository = projectRepository;
+        this.eventBus = eventBus;
+    }
+
+    /**
+     * @param projectId DB id of the project to patch
+     * @param patch     map of field name → new string value (from SNBT)
+     * @return the updated Project
+     * @throws IllegalArgumentException if the project does not exist or a field value is invalid
+     */
+    public Project execute(long projectId, Map<String, String> patch) {
+        Project current = projectRepository.findById(projectId)
+                .orElseThrow(() -> new IllegalArgumentException("Project not found: id=" + projectId));
+
+        String name                   = patch.getOrDefault("name",        current.getName());
+        String description            = patch.getOrDefault("description", current.getDescription() != null ? current.getDescription() : "");
+        String iconTexture            = patch.getOrDefault("iconTexture",  current.getIconTexture() != null ? current.getIconTexture() : "");
+        String textColor              = patch.getOrDefault("textColor",    current.getTextColor() != null ? current.getTextColor() : "");
+        Permission externalPermission = patch.containsKey("externalUserPermission")
+                ? Permission.valueOf(patch.get("externalUserPermission").toUpperCase())
+                : current.getExternalUserPermission();
+
+        Project updated = Project.builder()
+                .id(current.getId())
+                .ticketPrefix(current.getTicketPrefix())
+                .name(name)
+                .description(description)
+                .owner(current.getOwner())
+                .iconTexture(iconTexture)
+                .textColor(textColor)
+                .statuses(current.getStatuses())
+                .ticketTypes(current.getTicketTypes())
+                .relationshipTypes(current.getRelationshipTypes())
+                .members(current.getMembers())
+                .externalUserPermission(externalPermission)
+                .build();
+
+        return projectRepository.save(updated);
+    }
+}

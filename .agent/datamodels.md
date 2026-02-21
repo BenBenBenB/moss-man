@@ -27,7 +27,7 @@ The top-level container for all tickets and sprints.
 | `ticketTypes` | `List<TicketType>` | Allowed ticket types with branding. |
 | `relationshipTypes` | `List<RelationshipType>` | Definitions for how tickets can relate. |
 | `members` | `List<Member>` | List of users with access to the project. |
-| `externalUserPermission` | `Enum` | `NONE`, `VIEWER`, `CREATOR`, `EDITOR` |
+| `externalUserPermission` | `Enum` | `FORBID`, `VIEWER`, `CREATOR`, `EDITOR` |
 | `textColor` | `String` | Hex/MC code for displaying the project name or prefix. |
 
 ### 1.1 Status / TicketType
@@ -94,7 +94,7 @@ A user's relationship to a project.
 | `id` | `long` | Unique database mapping ID. |
 | `uuid` | `UUID` | Minecraft player UUID. |
 | `name` | `String` | Last known Minecraft username. |
-| `permission` | `Enum` | `VIEWER`, `CREATOR`, `EDITOR`, `ADMIN`, `OWNER`. |
+| `permission` | `Enum` | `FORBID`, `VIEWER`, `CREATOR`, `EDITOR`, `ADMIN`, `OWNER`. |
 
 ## 5. Comment
 | Field | Type | Description |
