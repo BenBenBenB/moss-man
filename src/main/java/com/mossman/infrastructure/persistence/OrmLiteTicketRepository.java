@@ -1,7 +1,11 @@
 package com.mossman.infrastructure.persistence;
 
 import com.j256.ormlite.dao.Dao;
+import com.j256.ormlite.dao.GenericRawResults;
+import com.j256.ormlite.stmt.QueryBuilder;
+import com.j256.ormlite.stmt.Where;
 import com.mossman.domain.entities.Ticket;
+import com.mossman.domain.query.TicketFilter;
 import com.mossman.domain.repositories.TicketRepository;
 import com.mossman.infrastructure.persistence.models.TicketDb;
 
@@ -50,6 +54,31 @@ public class OrmLiteTicketRepository implements TicketRepository {
     }
 
     @Override
+    public List<Ticket> findByProjectId(long projectId, TicketFilter filter) {
+        try {
+            QueryBuilder<TicketDb, Long> qb = ticketDao.queryBuilder();
+            Where<TicketDb, Long> where = qb.where().eq("projectId", projectId);
+            if (filter.status().isPresent()) {
+                where.and().eq("status", filter.status().get().toUpperCase());
+            }
+            if (filter.type().isPresent()) {
+                where.and().eq("type", filter.type().get());
+            }
+            if (filter.priority().isPresent()) {
+                where.and().eq("priority", filter.priority().get().toUpperCase());
+            }
+            if (filter.title().isPresent()) {
+                where.and().like("title", "%" + filter.title().get() + "%");
+            }
+            return qb.query().stream()
+                    .map(TicketDb::toDomain)
+                    .collect(Collectors.toList());
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to find filtered tickets", e);
+        }
+    }
+
+    @Override
     public void delete(long id) {
         try {
             ticketDao.deleteById(id);
@@ -61,11 +90,14 @@ public class OrmLiteTicketRepository implements TicketRepository {
     @Override
     public int getNextTicketNumber(long projectId) {
         try {
-            var qb = ticketDao.queryBuilder();
-            qb.setCountOf(true);
-            qb.where().eq("projectId", projectId);
-            long count = ticketDao.countOf(qb.prepare());
-            return (int) (count + 1);
+            GenericRawResults<String[]> results = ticketDao.queryRaw(
+                    "SELECT MAX(ticketNumber) FROM tickets WHERE projectId = ?",
+                    Long.toString(projectId));
+            String[] row = results.getFirstResult();
+            if (row == null || row[0] == null) {
+                return 1;
+            }
+            return Integer.parseInt(row[0]) + 1;
         } catch (SQLException e) {
             throw new RuntimeException("Failed to get next ticket number", e);
         }

@@ -5,11 +5,17 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import com.mossman.adapters.tui.TuiHelper;
+import com.mossman.domain.query.TicketFilter;
+import net.minecraft.command.argument.NbtCompoundArgumentType;
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class TicketCommand {
 
@@ -17,7 +23,9 @@ public class TicketCommand {
         var ticketNode = CommandManager.literal("ticket")
                 .then(CommandManager.literal("list")
                         .then(CommandManager.argument("prefix", StringArgumentType.word())
-                                .executes(TicketCommand::listTickets)))
+                                .executes(TicketCommand::listTickets)
+                                .then(CommandManager.argument("filter", NbtCompoundArgumentType.nbtCompound())
+                                        .executes(TicketCommand::listTicketsFiltered))))
                 .then(CommandManager.literal("view")
                         .then(CommandManager.argument("key", StringArgumentType.word())
                                 .executes(TicketCommand::viewTicket)))
@@ -39,6 +47,22 @@ public class TicketCommand {
     }
 
     private static int listTickets(CommandContext<ServerCommandSource> context) {
+        return doListTickets(context, TicketFilter.empty());
+    }
+
+    private static int listTicketsFiltered(CommandContext<ServerCommandSource> context) {
+        NbtCompound nbt = NbtCompoundArgumentType.getNbtCompound(context, "filter");
+        Map<String, String> filterMap = new HashMap<>();
+        // Supported SNBT keys: status, type, priority, title
+        // Example: {status:"OPEN",priority:"HIGH"}
+        for (String key : nbt.getKeys()) {
+            // NbtCompound.getString returns Optional<String> in 1.21.11; use orElse to unwrap
+            nbt.getString(key).ifPresent(value -> filterMap.put(key.toLowerCase(), value));
+        }
+        return doListTickets(context, TicketFilter.of(filterMap));
+    }
+
+    private static int doListTickets(CommandContext<ServerCommandSource> context, TicketFilter filter) {
         ServerCommandSource source = context.getSource();
         String prefix = StringArgumentType.getString(context, "prefix");
         
@@ -52,9 +76,14 @@ public class TicketCommand {
         }
 
         var project = projectOpt.get();
-        source.sendMessage(TuiHelper.translatable("mossman.command.ticket.list.header", prefix).formatted(Formatting.AQUA));
+        var headerText = filter.hasAny()
+                ? TuiHelper.translatable("mossman.command.ticket.list.header", prefix).getString() + " [filtered]"
+                : TuiHelper.translatable("mossman.command.ticket.list.header", prefix).getString();
+        source.sendMessage(Text.literal(headerText).formatted(Formatting.AQUA));
         
-        var tickets = com.mossman.MossManMod.getTicketRepository().findByProjectId(project.getId());
+        var tickets = filter.hasAny()
+                ? com.mossman.MossManMod.getTicketRepository().findByProjectId(project.getId(), filter)
+                : com.mossman.MossManMod.getTicketRepository().findByProjectId(project.getId());
         
         if (tickets.isEmpty()) {
             source.sendMessage(Text.literal("No tickets found.").formatted(Formatting.GRAY));
