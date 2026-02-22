@@ -13,14 +13,15 @@ class ProjectTest {
                 .id(1L)
                 .name("Test Project")
                 .ticketPrefix("TEST")
-                .owner(ownerId)
+                .members(java.util.List.of(new Member(0, ownerId, "Owner", "Owner", Permission.OWNER)))
                 .externalUserPermission(Permission.VIEWER)
                 .build();
 
         assertEquals(1L, project.getId());
         assertEquals("Test Project", project.getName());
         assertEquals("TEST", project.getTicketPrefix());
-        assertEquals(ownerId, project.getOwner());
+        assertTrue(project.getOwner().isPresent());
+        assertEquals(ownerId, project.getOwner().get().uuid());
         assertEquals(Permission.VIEWER, project.getExternalUserPermission());
         assertTrue(project.getStatuses().isEmpty());
     }

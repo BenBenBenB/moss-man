@@ -204,7 +204,17 @@ public class TicketCommand {
             );
 
             var savedTicket = com.mossman.MossManMod.getCreateTicketUseCase().execute(ticket, rId);
-            source.sendMessage(Text.literal("Created Ticket: " + title + " [" + savedTicket.getUserFriendlyKey(prefix) + "]").formatted(Formatting.GREEN));
+            
+            String key = savedTicket.getUserFriendlyKey(prefix);
+            MutableText response = TuiHelper.translatable("mossman.command.ticket.created", title).formatted(Formatting.GREEN);
+            response.append(TuiHelper.createRunLink(
+                    "[" + key + "]",
+                    "/mossman ticket view " + key,
+                    TuiHelper.translatable("mossman.command.ticket.view_hover").getString(),
+                    Formatting.GOLD
+            ));
+            source.sendMessage(response);
+            
             return 1;
         } catch (Exception e) {
             source.sendMessage(Text.literal("Failed to create ticket: " + e.getMessage()).formatted(Formatting.RED));

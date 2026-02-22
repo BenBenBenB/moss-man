@@ -1,5 +1,6 @@
 package com.mossman.infrastructure.persistence;
 
+import com.mossman.domain.entities.Member;
 import com.mossman.domain.entities.Permission;
 import com.mossman.domain.entities.Priority;
 import com.mossman.domain.entities.Project;
@@ -24,7 +25,8 @@ class RepositoryTest {
     void setUp() throws SQLException {
         // Use in-memory SQLite database for testing
         databaseManager = new DatabaseManager("jdbc:sqlite::memory:");
-        projectRepository = new OrmLiteProjectRepository(databaseManager.getProjectDao());
+        var memberRepository = new OrmLiteMemberRepository(databaseManager.getMemberDao());
+        projectRepository = new OrmLiteProjectRepository(databaseManager.getProjectDao(), memberRepository);
         ticketRepository = new OrmLiteTicketRepository(databaseManager.getTicketDao());
     }
 
@@ -38,7 +40,7 @@ class RepositoryTest {
         Project project = Project.builder()
                 .name("MossMan")
                 .ticketPrefix("MOSS")
-                .owner(UUID.randomUUID())
+                .members(java.util.List.of(new Member(0, UUID.randomUUID(), "Owner", "Owner", Permission.OWNER)))
                 .externalUserPermission(Permission.ADMIN)
                 .build();
 
@@ -56,7 +58,7 @@ class RepositoryTest {
         Project project = Project.builder()
                 .name("MossMan")
                 .ticketPrefix("MOSS")
-                .owner(UUID.randomUUID())
+                .members(java.util.List.of(new Member(0, UUID.randomUUID(), "Owner", "Owner", Permission.OWNER)))
                 .build();
         Project savedProject = projectRepository.save(project);
 

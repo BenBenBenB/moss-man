@@ -11,5 +11,6 @@
   "mossman.command.ticket.create_hover": "Click to create a new ticket",
   "mossman.command.ticket.back_btn": "[Back to Projects]",
   "mossman.command.ticket.back_hover": "Return to project list",
-  "mossman.command.ticket.view_hover": "Click to view ticket details"
+  "mossman.command.ticket.view_hover": "Click to view ticket details",
+  "mossman.command.ticket.created": "Created Ticket: %s "
 }
