@@ -38,10 +38,6 @@ public class TicketCommand {
                         .then(CommandManager.argument("prefix", StringArgumentType.word())
                                 .then(CommandManager.argument("title", StringArgumentType.greedyString())
                                         .executes(TicketCommand::createTicket))))
-                .then(CommandManager.literal("status")
-                        .then(CommandManager.argument("key", StringArgumentType.word())
-                                .then(CommandManager.argument("newStatus", StringArgumentType.word())
-                                        .executes(TicketCommand::updateStatus))))
                 .then(CommandManager.literal("update")
                         .then(CommandManager.argument("key", StringArgumentType.word())
                                 .then(CommandManager.argument("patch", NbtCompoundArgumentType.nbtCompound())
@@ -218,7 +214,7 @@ public class TicketCommand {
         // Status
         MutableText statusLine = Text.empty();
         if (isEditor) {
-            statusLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman ticket status " + key + " ", TuiHelper.translatable("mossman.tui.ticket.edit_field_hover", "Status"), Formatting.GRAY));
+            statusLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman ticket update " + key + " {status:\"" + ticket.getStatus() + "\"}", TuiHelper.translatable("mossman.tui.ticket.edit_field_hover", "Status"), Formatting.GRAY));
         }
         statusLine.append(Text.literal("Status: " + ticket.getStatus()).formatted(Formatting.YELLOW));
         source.sendMessage(statusLine);
@@ -232,9 +228,8 @@ public class TicketCommand {
         source.sendMessage(descLine);
 
         if (com.mossman.domain.auth.PermissionChecker.hasPermission(project, source, com.mossman.domain.entities.Permission.EDITOR)) {
-            MutableText updateBtn = TuiHelper.createSuggestLink("[Update Status] ", "/mossman ticket status " + key + " ", "Update ticket status", Formatting.GOLD);
             MutableText editBtn = TuiHelper.createSuggestLink("[Edit] ", "/mossman ticket update " + key + " ", "Edit ticket fields", Formatting.YELLOW);
-            source.sendMessage(updateBtn.append(editBtn));
+            source.sendMessage(editBtn);
         }
 
         return 1;
@@ -286,34 +281,7 @@ public class TicketCommand {
         }
     }
 
-    private static int updateStatus(CommandContext<ServerCommandSource> context) {
-        ServerCommandSource source = context.getSource();
-        String key = StringArgumentType.getString(context, "key");
-        String newStatus = StringArgumentType.getString(context, "newStatus").toUpperCase();
-        
-        try {
-            String prefix = key.split("-")[0];
-            int number = Integer.parseInt(key.split("-")[1]);
 
-            var project = com.mossman.MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream()
-                    .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElseThrow(() -> new IllegalArgumentException("Project not found"));
-
-            var ticket = com.mossman.MossManMod.getTicketRepository().findByProjectId(project.getId(), 0, Integer.MAX_VALUE).stream()
-                    .filter(t -> t.getTicketNumber() == number).findFirst().orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
-
-            java.util.UUID rId = source.getPlayer() != null ? source.getPlayer().getUuid() : java.util.UUID.randomUUID();
-            
-            // Re-using UpdateTicketUseCase but with status patch
-            java.util.Map<String, String> patch = java.util.Map.of("status", newStatus);
-            com.mossman.MossManMod.getUpdateTicketUseCase().execute(ticket.getId(), rId, patch);
-            
-            source.sendMessage(Text.literal("Updated " + key + " status to " + newStatus).formatted(Formatting.GREEN));
-            return 1;
-        } catch (Exception e) {
-             source.sendMessage(Text.literal("Failed to update status: " + e.getMessage()).formatted(Formatting.RED));
-             return 0;
-        }
-    }
 
     private static int addComment(CommandContext<ServerCommandSource> context) {
         ServerCommandSource source = context.getSource();
