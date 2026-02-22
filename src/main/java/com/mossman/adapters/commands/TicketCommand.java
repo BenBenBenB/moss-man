@@ -101,8 +101,8 @@ public class TicketCommand {
         }
 
         var headerText = filter.hasAny()
-                ? TuiHelper.translatable("mossman.command.ticket.list.header", prefix).getString() + " [filtered]"
-                : TuiHelper.translatable("mossman.command.ticket.list.header", prefix).getString();
+                ? TuiHelper.translatable("mossman.tui.ticket.list.header", prefix).getString() + " [filtered]"
+                : TuiHelper.translatable("mossman.tui.ticket.list.header", prefix).getString();
         source.sendMessage(Text.literal(headerText).formatted(Formatting.AQUA));
         
         int pageSize = 10;
@@ -125,7 +125,7 @@ public class TicketCommand {
                 MutableText ticketLink = TuiHelper.createRunLink(
                         "[" + key + "]", 
                         "/mossman ticket view " + key, 
-                        TuiHelper.translatable("mossman.command.ticket.view_hover").getString(), 
+                        TuiHelper.translatable("mossman.tui.ticket.view_hover").getString(), 
                         Formatting.GREEN
                 ).append(Text.literal(" " + ticket.getTitle() + " [" + ticket.getStatus() + "]").formatted(Formatting.WHITE));
                 source.sendMessage(ticketLink);
@@ -139,24 +139,24 @@ public class TicketCommand {
                 String prevCmd = filter.hasAny() 
                     ? String.format("/mossman ticket list %s %s %d", prefix, getFilterNbt(context), page - 1)
                     : String.format("/mossman ticket list %s %d", prefix, page - 1);
-                nav.append(TuiHelper.createRunLink(TuiHelper.translatable("mossman.pagination.prev").getString(), prevCmd, "Previous Page", Formatting.GOLD)).append(" ");
+                nav.append(TuiHelper.createRunLink(TuiHelper.translatable("mossman.tui.common.pagination.prev").getString(), prevCmd, "Previous Page", Formatting.GOLD)).append(" ");
             }
-            nav.append(TuiHelper.translatable("mossman.pagination.page_info", page, totalPages).formatted(Formatting.GRAY));
+            nav.append(TuiHelper.translatable("mossman.tui.common.pagination.page_info", page, totalPages).formatted(Formatting.GRAY));
             if (page < totalPages) {
                 String nextCmd = filter.hasAny()
                     ? String.format("/mossman ticket list %s %s %d", prefix, getFilterNbt(context), page + 1)
                     : String.format("/mossman ticket list %s %d", prefix, page + 1);
-                nav.append(" ").append(TuiHelper.createRunLink(TuiHelper.translatable("mossman.pagination.next").getString(), nextCmd, "Next Page", Formatting.GOLD));
+                nav.append(" ").append(TuiHelper.createRunLink(TuiHelper.translatable("mossman.tui.common.pagination.next").getString(), nextCmd, "Next Page", Formatting.GOLD));
             }
             source.sendMessage(nav);
         }
         
-        source.sendMessage(TuiHelper.translatable("mossman.command.ticket.list.footer").formatted(Formatting.GRAY));
+        source.sendMessage(TuiHelper.translatable("mossman.tui.ticket.list.footer").formatted(Formatting.GRAY));
         
         MutableText createBtn = TuiHelper.createSuggestLink(
-                TuiHelper.translatable("mossman.command.ticket.create_btn").getString(),
+                TuiHelper.translatable("mossman.tui.ticket.create_btn").getString(),
                 "/mossman ticket create " + prefix + " ",
-                TuiHelper.translatable("mossman.command.ticket.create_hover").getString(),
+                TuiHelper.translatable("mossman.tui.ticket.create_hover").getString(),
                 Formatting.GOLD
         );
         source.sendMessage(createBtn);
@@ -204,9 +204,32 @@ public class TicketCommand {
         
         var ticket = ticketOpt.get();
         source.sendMessage(Text.literal("--- Ticket: " + key + " ---").formatted(Formatting.AQUA));
-        source.sendMessage(Text.literal("Title: " + ticket.getTitle()).formatted(Formatting.WHITE));
-        source.sendMessage(Text.literal("Status: " + ticket.getStatus()).formatted(Formatting.YELLOW));
-        source.sendMessage(Text.literal("Description: " + (ticket.getDescription() != null ? ticket.getDescription() : "None")).formatted(Formatting.GRAY));
+        
+        boolean isEditor = com.mossman.domain.auth.PermissionChecker.hasPermission(project, source, com.mossman.domain.entities.Permission.EDITOR);
+        
+        // Title
+        MutableText titleLine = Text.empty();
+        if (isEditor) {
+            titleLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman ticket update " + key + " {title:\"" + ticket.getTitle() + "\"}", TuiHelper.translatable("mossman.tui.ticket.edit_field_hover", "Title"), Formatting.GRAY));
+        }
+        titleLine.append(Text.literal("Title: " + ticket.getTitle()).formatted(Formatting.WHITE));
+        source.sendMessage(titleLine);
+
+        // Status
+        MutableText statusLine = Text.empty();
+        if (isEditor) {
+            statusLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman ticket status " + key + " ", TuiHelper.translatable("mossman.tui.ticket.edit_field_hover", "Status"), Formatting.GRAY));
+        }
+        statusLine.append(Text.literal("Status: " + ticket.getStatus()).formatted(Formatting.YELLOW));
+        source.sendMessage(statusLine);
+
+        // Description
+        MutableText descLine = Text.empty();
+        if (isEditor) {
+            descLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman ticket update " + key + " {description:\"" + (ticket.getDescription() != null ? ticket.getDescription() : "") + "\"}", TuiHelper.translatable("mossman.tui.ticket.edit_field_hover", "Description"), Formatting.GRAY));
+        }
+        descLine.append(Text.literal("Description: " + (ticket.getDescription() != null ? ticket.getDescription() : "None")).formatted(Formatting.GRAY));
+        source.sendMessage(descLine);
 
         if (com.mossman.domain.auth.PermissionChecker.hasPermission(project, source, com.mossman.domain.entities.Permission.EDITOR)) {
             MutableText updateBtn = TuiHelper.createSuggestLink("[Update Status] ", "/mossman ticket status " + key + " ", "Update ticket status", Formatting.GOLD);
@@ -247,11 +270,11 @@ public class TicketCommand {
             var savedTicket = com.mossman.MossManMod.getCreateTicketUseCase().execute(ticket, rId);
             
             String key = savedTicket.getUserFriendlyKey(prefix);
-            MutableText response = TuiHelper.translatable("mossman.command.ticket.created", title).formatted(Formatting.GREEN);
+            MutableText response = TuiHelper.translatable("mossman.tui.ticket.created", title).formatted(Formatting.GREEN);
             response.append(TuiHelper.createRunLink(
                     "[" + key + "]",
                     "/mossman ticket view " + key,
-                    TuiHelper.translatable("mossman.command.ticket.view_hover").getString(),
+                    TuiHelper.translatable("mossman.tui.ticket.view_hover").getString(),
                     Formatting.GOLD
             ));
             source.sendMessage(response);

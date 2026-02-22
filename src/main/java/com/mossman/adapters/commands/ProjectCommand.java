@@ -74,7 +74,7 @@ public class ProjectCommand {
 
     private static int listProjects(CommandContext<ServerCommandSource> context) {
         ServerCommandSource source = context.getSource();
-        source.sendMessage(TuiHelper.translatable("mossman.command.project.list.header").formatted(Formatting.AQUA));
+        source.sendMessage(TuiHelper.translatable("mossman.tui.project.list.header").formatted(Formatting.AQUA));
         
         int page = 1;
         try { page = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "page"); } catch (Exception ignored) {}
@@ -104,7 +104,7 @@ public class ProjectCommand {
                 MutableText projectLink = TuiHelper.createRunLink(
                         "[" + project.getTicketPrefix() + "]", 
                         "/mossman project view " + project.getTicketPrefix(), 
-                        TuiHelper.translatable("mossman.command.project.view_hover").getString(), 
+                        TuiHelper.translatable("mossman.tui.project.view_hover").getString(), 
                         Formatting.GREEN
                 ).append(Text.literal(" " + project.getName()).formatted(Formatting.WHITE));
                 source.sendMessage(projectLink);
@@ -115,21 +115,21 @@ public class ProjectCommand {
         if (totalPages > 1) {
             MutableText nav = Text.empty();
             if (page > 1) {
-                nav.append(TuiHelper.createRunLink(TuiHelper.translatable("mossman.pagination.prev").getString(), "/mossman project list " + (page - 1), "Previous Page", Formatting.GOLD)).append(" ");
+                nav.append(TuiHelper.createRunLink(TuiHelper.translatable("mossman.tui.common.pagination.prev").getString(), "/mossman project list " + (page - 1), "Previous Page", Formatting.GOLD)).append(" ");
             }
-            nav.append(TuiHelper.translatable("mossman.pagination.page_info", page, totalPages).formatted(Formatting.GRAY));
+            nav.append(TuiHelper.translatable("mossman.tui.common.pagination.page_info", page, totalPages).formatted(Formatting.GRAY));
             if (page < totalPages) {
-                nav.append(" ").append(TuiHelper.createRunLink(TuiHelper.translatable("mossman.pagination.next").getString(), "/mossman project list " + (page + 1), "Next Page", Formatting.GOLD));
+                nav.append(" ").append(TuiHelper.createRunLink(TuiHelper.translatable("mossman.tui.common.pagination.next").getString(), "/mossman project list " + (page + 1), "Next Page", Formatting.GOLD));
             }
             source.sendMessage(nav);
         }
         
-        source.sendMessage(TuiHelper.translatable("mossman.command.project.list.footer").formatted(Formatting.GRAY));
+        source.sendMessage(TuiHelper.translatable("mossman.tui.project.list.footer").formatted(Formatting.GRAY));
         
         MutableText createBtn = TuiHelper.createSuggestLink(
-                TuiHelper.translatable("mossman.command.project.create_btn").getString(),
+                TuiHelper.translatable("mossman.tui.project.create_btn").getString(),
                 "/mossman project create ",
-                TuiHelper.translatable("mossman.command.project.create_hover").getString(),
+                TuiHelper.translatable("mossman.tui.project.create_hover").getString(),
                 Formatting.GOLD
         );
         source.sendMessage(createBtn);
@@ -156,8 +156,25 @@ public class ProjectCommand {
             return 0;
         }
 
-        source.sendMessage(Text.literal("--- Project: " + project.getName() + " [" + project.getTicketPrefix() + "] ---").formatted(Formatting.AQUA));
-        source.sendMessage(Text.literal("Description: ").formatted(Formatting.GRAY).append(Text.literal(project.getDescription() != null ? project.getDescription() : "None").formatted(Formatting.WHITE)));
+        source.sendMessage(Text.literal("--- Project: [" + project.getTicketPrefix() + "] ---").formatted(Formatting.AQUA));
+        
+        boolean isEditor = PermissionChecker.hasPermission(project, source, Permission.EDITOR);
+
+        // Name
+        MutableText nameLine = Text.empty();
+        if (isEditor) {
+            nameLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project update " + project.getTicketPrefix() + " {name:\"" + project.getName() + "\"}", TuiHelper.translatable("mossman.tui.ticket.edit_field_hover", "Name"), Formatting.GRAY));
+        }
+        nameLine.append(Text.literal("Name: " + project.getName()).formatted(Formatting.WHITE));
+        source.sendMessage(nameLine);
+
+        // Description
+        MutableText descLine = Text.empty();
+        if (isEditor) {
+            descLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project update " + project.getTicketPrefix() + " {description:\"" + (project.getDescription() != null ? project.getDescription() : "") + "\"}", TuiHelper.translatable("mossman.tui.ticket.edit_field_hover", "Description"), Formatting.GRAY));
+        }
+        descLine.append(Text.literal("Description: ").formatted(Formatting.GRAY).append(Text.literal(project.getDescription() != null ? project.getDescription() : "None").formatted(Formatting.WHITE)));
+        source.sendMessage(descLine);
         
         source.sendMessage(Text.literal("Members: ").formatted(Formatting.GRAY).append(Text.literal(String.valueOf(project.getMembers().size())).formatted(Formatting.WHITE)));
         
@@ -165,7 +182,7 @@ public class ProjectCommand {
         MutableText viewMembersBtn = TuiHelper.createRunLink("[View Members] ", "/mossman project member list " + project.getTicketPrefix(), "View project members", Formatting.GOLD);
         
         source.sendMessage(viewTicketsBtn.append(viewMembersBtn));
-        source.sendMessage(TuiHelper.translatable("mossman.command.project.list.footer").formatted(Formatting.GRAY));
+        source.sendMessage(TuiHelper.translatable("mossman.tui.project.list.footer").formatted(Formatting.GRAY));
         
         return 1;
     }
@@ -191,11 +208,11 @@ public class ProjectCommand {
             String upperPrefix = prefix.toUpperCase();
             MossManMod.getCreateProjectUseCase().execute(projectBuilder, creatorId, creatorName);
             
-            MutableText response = TuiHelper.translatable("mossman.command.project.created", name).formatted(Formatting.GREEN);
+            MutableText response = TuiHelper.translatable("mossman.tui.project.created", name).formatted(Formatting.GREEN);
             response.append(TuiHelper.createRunLink(
                     "[" + upperPrefix + "]",
                     "/mossman project view " + upperPrefix,
-                    TuiHelper.translatable("mossman.command.project.view_hover").getString(),
+                    TuiHelper.translatable("mossman.tui.project.view_hover").getString(),
                     Formatting.GOLD
             ));
             source.sendMessage(response);
@@ -298,11 +315,11 @@ public class ProjectCommand {
         if (totalPages > 1) {
             MutableText nav = Text.empty();
             if (page > 1) {
-                nav.append(TuiHelper.createRunLink(TuiHelper.translatable("mossman.pagination.prev").getString(), String.format("/mossman project member list %s %d", prefix, page - 1), "Previous Page", Formatting.GOLD)).append(" ");
+                nav.append(TuiHelper.createRunLink(TuiHelper.translatable("mossman.tui.common.pagination.prev").getString(), String.format("/mossman project member list %s %d", prefix, page - 1), "Previous Page", Formatting.GOLD)).append(" ");
             }
-            nav.append(TuiHelper.translatable("mossman.pagination.page_info", page, totalPages).formatted(Formatting.GRAY));
+            nav.append(TuiHelper.translatable("mossman.tui.common.pagination.page_info", page, totalPages).formatted(Formatting.GRAY));
             if (page < totalPages) {
-                nav.append(" ").append(TuiHelper.createRunLink(TuiHelper.translatable("mossman.pagination.next").getString(), String.format("/mossman project member list %s %d", prefix, page + 1), "Next Page", Formatting.GOLD));
+                nav.append(" ").append(TuiHelper.createRunLink(TuiHelper.translatable("mossman.tui.common.pagination.next").getString(), String.format("/mossman project member list %s %d", prefix, page + 1), "Next Page", Formatting.GOLD));
             }
             source.sendMessage(nav);
         }
