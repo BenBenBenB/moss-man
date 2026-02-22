@@ -5,6 +5,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import com.mossman.adapters.tui.NbtPatchParser;
+import com.mossman.adapters.tui.SuggestionHelper;
 import com.mossman.adapters.tui.TuiHelper;
 import com.mossman.domain.query.TicketFilter;
 import net.minecraft.command.argument.NbtCompoundArgumentType;
@@ -23,7 +24,7 @@ public class TicketCommand {
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher, LiteralCommandNode<ServerCommandSource> rootNode) {
         var ticketNode = CommandManager.literal("ticket")
                 .then(CommandManager.literal("list")
-                        .then(CommandManager.argument("prefix", StringArgumentType.word())
+                        .then(CommandManager.argument("prefix", StringArgumentType.word()).suggests(SuggestionHelper::suggestVisiblePrefixes)
                                 .executes(TicketCommand::listTickets)
                                 .then(CommandManager.argument("page", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1))
                                         .executes(TicketCommand::listTickets))
@@ -32,18 +33,18 @@ public class TicketCommand {
                                         .then(CommandManager.argument("page", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1))
                                                 .executes(TicketCommand::listTicketsFiltered)))))
                 .then(CommandManager.literal("view")
-                        .then(CommandManager.argument("key", StringArgumentType.word())
+                        .then(CommandManager.argument("key", StringArgumentType.word()).suggests(SuggestionHelper::suggestTicketKeys)
                                 .executes(TicketCommand::viewTicket)))
                 .then(CommandManager.literal("create")
-                        .then(CommandManager.argument("prefix", StringArgumentType.word())
+                        .then(CommandManager.argument("prefix", StringArgumentType.word()).suggests(SuggestionHelper::suggestVisiblePrefixes)
                                 .then(CommandManager.argument("title", StringArgumentType.greedyString())
                                         .executes(TicketCommand::createTicket))))
                 .then(CommandManager.literal("update")
-                        .then(CommandManager.argument("key", StringArgumentType.word())
+                        .then(CommandManager.argument("key", StringArgumentType.word()).suggests(SuggestionHelper::suggestTicketKeys)
                                 .then(CommandManager.argument("patch", NbtCompoundArgumentType.nbtCompound())
                                         .executes(TicketCommand::updateTicket))))
                 .then(CommandManager.literal("comment")
-                        .then(CommandManager.argument("key", StringArgumentType.word())
+                        .then(CommandManager.argument("key", StringArgumentType.word()).suggests(SuggestionHelper::suggestTicketKeys)
                                 .then(CommandManager.argument("message", StringArgumentType.greedyString())
                                         .executes(TicketCommand::addComment))))
                 .build();
