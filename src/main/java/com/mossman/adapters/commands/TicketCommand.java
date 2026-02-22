@@ -25,8 +25,12 @@ public class TicketCommand {
                 .then(CommandManager.literal("list")
                         .then(CommandManager.argument("prefix", StringArgumentType.word())
                                 .executes(TicketCommand::listTickets)
+                                .then(CommandManager.argument("page", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1))
+                                        .executes(TicketCommand::listTickets))
                                 .then(CommandManager.argument("filter", NbtCompoundArgumentType.nbtCompound())
-                                        .executes(TicketCommand::listTicketsFiltered))))
+                                        .executes(TicketCommand::listTicketsFiltered)
+                                        .then(CommandManager.argument("page", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1))
+                                                .executes(TicketCommand::listTicketsFiltered)))))
                 .then(CommandManager.literal("view")
                         .then(CommandManager.argument("key", StringArgumentType.word())
                                 .executes(TicketCommand::viewTicket)))
@@ -52,10 +56,12 @@ public class TicketCommand {
     }
 
     private static int listTickets(CommandContext<ServerCommandSource> context) {
-        return doListTickets(context, TicketFilter.empty());
+        int page = getPage(context);
+        return doListTickets(context, TicketFilter.empty(), page);
     }
 
     private static int listTicketsFiltered(CommandContext<ServerCommandSource> context) {
+        int page = getPage(context);
         NbtCompound nbt = NbtCompoundArgumentType.getNbtCompound(context, "filter");
         Map<String, String> filterMap = new HashMap<>();
         // Supported SNBT keys: status, type, priority, title
@@ -64,14 +70,22 @@ public class TicketCommand {
             // NbtCompound.getString returns Optional<String> in 1.21.11; use orElse to unwrap
             nbt.getString(key).ifPresent(value -> filterMap.put(key.toLowerCase(), value));
         }
-        return doListTickets(context, TicketFilter.of(filterMap));
+        return doListTickets(context, TicketFilter.of(filterMap), page);
     }
 
-    private static int doListTickets(CommandContext<ServerCommandSource> context, TicketFilter filter) {
+    private static int getPage(CommandContext<ServerCommandSource> context) {
+        try {
+            return com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "page");
+        } catch (IllegalArgumentException e) {
+            return 1;
+        }
+    }
+
+    private static int doListTickets(CommandContext<ServerCommandSource> context, TicketFilter filter, int page) {
         ServerCommandSource source = context.getSource();
         String prefix = StringArgumentType.getString(context, "prefix");
         
-        var projectOpt = com.mossman.MossManMod.getProjectRepository().findAll().stream()
+        var projectOpt = com.mossman.MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream()
                 .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix))
                 .findFirst();
 
@@ -91,10 +105,18 @@ public class TicketCommand {
                 : TuiHelper.translatable("mossman.command.ticket.list.header", prefix).getString();
         source.sendMessage(Text.literal(headerText).formatted(Formatting.AQUA));
         
-        var tickets = filter.hasAny()
-                ? com.mossman.MossManMod.getTicketRepository().findByProjectId(project.getId(), filter)
-                : com.mossman.MossManMod.getTicketRepository().findByProjectId(project.getId());
+        int pageSize = 10;
+        int offset = (page - 1) * pageSize;
         
+        var tickets = filter.hasAny()
+                ? com.mossman.MossManMod.getTicketRepository().findByProjectId(project.getId(), filter, offset, pageSize)
+                : com.mossman.MossManMod.getTicketRepository().findByProjectId(project.getId(), offset, pageSize);
+        
+        long totalTickets = filter.hasAny()
+                ? com.mossman.MossManMod.getTicketRepository().countByProjectId(project.getId(), filter)
+                : com.mossman.MossManMod.getTicketRepository().countByProjectId(project.getId());
+        int totalPages = (int) Math.ceil((double) totalTickets / pageSize);
+
         if (tickets.isEmpty()) {
             source.sendMessage(Text.literal("No tickets found.").formatted(Formatting.GRAY));
         } else {
@@ -108,6 +130,25 @@ public class TicketCommand {
                 ).append(Text.literal(" " + ticket.getTitle() + " [" + ticket.getStatus() + "]").formatted(Formatting.WHITE));
                 source.sendMessage(ticketLink);
             }
+        }
+        
+        // Pagination footer
+        if (totalPages > 1) {
+            MutableText nav = Text.empty();
+            if (page > 1) {
+                String prevCmd = filter.hasAny() 
+                    ? String.format("/mossman ticket list %s %s %d", prefix, getFilterNbt(context), page - 1)
+                    : String.format("/mossman ticket list %s %d", prefix, page - 1);
+                nav.append(TuiHelper.createRunLink(TuiHelper.translatable("mossman.pagination.prev").getString(), prevCmd, "Previous Page", Formatting.GOLD)).append(" ");
+            }
+            nav.append(TuiHelper.translatable("mossman.pagination.page_info", page, totalPages).formatted(Formatting.GRAY));
+            if (page < totalPages) {
+                String nextCmd = filter.hasAny()
+                    ? String.format("/mossman ticket list %s %s %d", prefix, getFilterNbt(context), page + 1)
+                    : String.format("/mossman ticket list %s %d", prefix, page + 1);
+                nav.append(" ").append(TuiHelper.createRunLink(TuiHelper.translatable("mossman.pagination.next").getString(), nextCmd, "Next Page", Formatting.GOLD));
+            }
+            source.sendMessage(nav);
         }
         
         source.sendMessage(TuiHelper.translatable("mossman.command.ticket.list.footer").formatted(Formatting.GRAY));
@@ -137,7 +178,7 @@ public class TicketCommand {
         int number;
         try { number = Integer.parseInt(parts[1]); } catch (Exception e) { return 0; }
 
-        var projectOpt = com.mossman.MossManMod.getProjectRepository().findAll().stream()
+        var projectOpt = com.mossman.MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream()
                 .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix))
                 .findFirst();
 
@@ -152,7 +193,7 @@ public class TicketCommand {
             return 0;
         }
 
-        var ticketOpt = com.mossman.MossManMod.getTicketRepository().findByProjectId(project.getId()).stream()
+        var ticketOpt = com.mossman.MossManMod.getTicketRepository().findByProjectId(project.getId(), 0, Integer.MAX_VALUE).stream()
                 .filter(t -> t.getTicketNumber() == number)
                 .findFirst();
 
@@ -181,7 +222,7 @@ public class TicketCommand {
         String prefix = StringArgumentType.getString(context, "prefix");
         String title = StringArgumentType.getString(context, "title");
         
-        var projectOpt = com.mossman.MossManMod.getProjectRepository().findAll().stream()
+        var projectOpt = com.mossman.MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream()
                 .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix))
                 .findFirst();
 
@@ -231,10 +272,10 @@ public class TicketCommand {
             String prefix = key.split("-")[0];
             int number = Integer.parseInt(key.split("-")[1]);
 
-            var project = com.mossman.MossManMod.getProjectRepository().findAll().stream()
+            var project = com.mossman.MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream()
                     .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElseThrow(() -> new IllegalArgumentException("Project not found"));
 
-            var ticket = com.mossman.MossManMod.getTicketRepository().findByProjectId(project.getId()).stream()
+            var ticket = com.mossman.MossManMod.getTicketRepository().findByProjectId(project.getId(), 0, Integer.MAX_VALUE).stream()
                     .filter(t -> t.getTicketNumber() == number).findFirst().orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
 
             java.util.UUID rId = source.getPlayer() != null ? source.getPlayer().getUuid() : java.util.UUID.randomUUID();
@@ -258,7 +299,7 @@ public class TicketCommand {
 
         try {
             String prefix = key.split("-")[0];
-            var project = com.mossman.MossManMod.getProjectRepository().findAll().stream()
+            var project = com.mossman.MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream()
                     .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
 
             if (project != null) {
@@ -280,10 +321,10 @@ public class TicketCommand {
         try {
             String prefix = key.split("-")[0];
             int number = Integer.parseInt(key.split("-")[1]);
-            var project = com.mossman.MossManMod.getProjectRepository().findAll().stream()
+            var project = com.mossman.MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream()
                     .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElseThrow(() -> new IllegalArgumentException("Project not found"));
 
-            var ticket = com.mossman.MossManMod.getTicketRepository().findByProjectId(project.getId()).stream()
+            var ticket = com.mossman.MossManMod.getTicketRepository().findByProjectId(project.getId(), 0, Integer.MAX_VALUE).stream()
                     .filter(t -> t.getTicketNumber() == number).findFirst().orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
 
             java.util.UUID rId = source.getPlayer() != null ? source.getPlayer().getUuid() : java.util.UUID.randomUUID();
@@ -295,6 +336,13 @@ public class TicketCommand {
         } catch (Exception e) {
             source.sendMessage(Text.literal("Failed to update ticket: " + e.getMessage()).formatted(Formatting.RED));
             return 0;
+        }
+    }
+    private static String getFilterNbt(CommandContext<ServerCommandSource> context) {
+        try {
+            return NbtCompoundArgumentType.getNbtCompound(context, "filter").toString();
+        } catch (Exception e) {
+            return "{}";
         }
     }
 }

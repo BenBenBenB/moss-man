@@ -87,6 +87,7 @@ public class MossManMod implements ModInitializer {
     public static RemoveMemberUseCase getRemoveMemberUseCase() { return removeMemberUseCase; }
     public static TransferOwnershipUseCase getTransferOwnershipUseCase() { return transferOwnershipUseCase; }
     public static OrmLiteProjectRepository getProjectRepository() { return projectRepository; }
+    public static OrmLiteMemberRepository getMemberRepository() { return memberRepository; }
     public static OrmLiteTicketRepository getTicketRepository() { return ticketRepository; }
     public static DatabaseManager getDatabaseManager() { return databaseManager; }
 }

@@ -7,7 +7,8 @@ import java.util.UUID;
 
 public interface MemberRepository {
     Member save(long projectId, Member member);
-    List<Member> findByProjectId(long projectId);
+    List<Member> findByProjectId(long projectId, int offset, int limit);
+    long countByProjectId(long projectId);
     Optional<Member> findByProjectIdAndUuid(long projectId, UUID uuid);
     void deleteByProjectIdAndUuid(long projectId, UUID uuid);
 }

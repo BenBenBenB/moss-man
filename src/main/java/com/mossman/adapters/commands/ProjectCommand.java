@@ -25,7 +25,10 @@ public class ProjectCommand {
 
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher, LiteralCommandNode<ServerCommandSource> rootNode) {
         var projectNode = CommandManager.literal("project")
-                .then(CommandManager.literal("list").executes(ProjectCommand::listProjects))
+                .then(CommandManager.literal("list")
+                        .executes(ProjectCommand::listProjects)
+                        .then(CommandManager.argument("page", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1))
+                                .executes(ProjectCommand::listProjects)))
                 .then(CommandManager.literal("view")
                         .then(CommandManager.argument("prefix", StringArgumentType.word())
                                 .executes(ProjectCommand::viewProject)))
@@ -43,7 +46,9 @@ public class ProjectCommand {
                 .then(CommandManager.literal("member")
                         .then(CommandManager.literal("list")
                                 .then(CommandManager.argument("prefix", StringArgumentType.word())
-                                        .executes(ProjectCommand::listMembers)))
+                                        .executes(ProjectCommand::listMembers)
+                                        .then(CommandManager.argument("page", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1))
+                                                .executes(ProjectCommand::listMembers))))
                         .then(CommandManager.literal("add")
                                 .then(CommandManager.argument("prefix", StringArgumentType.word())
                                         .then(CommandManager.argument("player", GameProfileArgumentType.gameProfile())
@@ -71,15 +76,31 @@ public class ProjectCommand {
         ServerCommandSource source = context.getSource();
         source.sendMessage(TuiHelper.translatable("mossman.command.project.list.header").formatted(Formatting.AQUA));
         
-        var projects = MossManMod.getProjectRepository().findAll();
-        var visibleProjects = projects.stream()
+        int page = 1;
+        try { page = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "page"); } catch (Exception ignored) {}
+        
+        int pageSize = 10;
+        int offset = (page - 1) * pageSize;
+
+        // Note: For projects, we filter in memory because of the complex permission check
+        // In a real app, we'd want to do this in the DB
+        var allProjects = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE);
+        var visibleProjects = allProjects.stream()
                 .filter(p -> PermissionChecker.canView(p, source))
                 .toList();
 
-        if (visibleProjects.isEmpty()) {
+        int totalVisible = visibleProjects.size();
+        int totalPages = (int) Math.ceil((double) totalVisible / pageSize);
+        
+        var paginatedProjects = visibleProjects.stream()
+                .skip(offset)
+                .limit(pageSize)
+                .toList();
+
+        if (paginatedProjects.isEmpty()) {
             source.sendMessage(Text.literal("No projects available to view.").formatted(Formatting.GRAY));
         } else {
-            for (var project : visibleProjects) {
+            for (var project : paginatedProjects) {
                 MutableText projectLink = TuiHelper.createRunLink(
                         "[" + project.getTicketPrefix() + "]", 
                         "/mossman project view " + project.getTicketPrefix(), 
@@ -88,6 +109,19 @@ public class ProjectCommand {
                 ).append(Text.literal(" " + project.getName()).formatted(Formatting.WHITE));
                 source.sendMessage(projectLink);
             }
+        }
+        
+        // Pagination footer
+        if (totalPages > 1) {
+            MutableText nav = Text.empty();
+            if (page > 1) {
+                nav.append(TuiHelper.createRunLink(TuiHelper.translatable("mossman.pagination.prev").getString(), "/mossman project list " + (page - 1), "Previous Page", Formatting.GOLD)).append(" ");
+            }
+            nav.append(TuiHelper.translatable("mossman.pagination.page_info", page, totalPages).formatted(Formatting.GRAY));
+            if (page < totalPages) {
+                nav.append(" ").append(TuiHelper.createRunLink(TuiHelper.translatable("mossman.pagination.next").getString(), "/mossman project list " + (page + 1), "Next Page", Formatting.GOLD));
+            }
+            source.sendMessage(nav);
         }
         
         source.sendMessage(TuiHelper.translatable("mossman.command.project.list.footer").formatted(Formatting.GRAY));
@@ -107,7 +141,7 @@ public class ProjectCommand {
         ServerCommandSource source = context.getSource();
         String prefix = StringArgumentType.getString(context, "prefix");
         
-        var projectOpt = MossManMod.getProjectRepository().findAll().stream()
+        var projectOpt = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream()
                 .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix))
                 .findFirst();
 
@@ -141,7 +175,7 @@ public class ProjectCommand {
         String prefix = StringArgumentType.getString(context, "prefix");
         String name = StringArgumentType.getString(context, "name");
         
-        if (MossManMod.getProjectRepository().findAll().stream().anyMatch(p -> p.getTicketPrefix().equalsIgnoreCase(prefix))) {
+        if (MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream().anyMatch(p -> p.getTicketPrefix().equalsIgnoreCase(prefix))) {
             source.sendMessage(Text.literal("A project with prefix " + prefix + " already exists.").formatted(Formatting.RED));
             return 0;
         }
@@ -154,8 +188,17 @@ public class ProjectCommand {
             UUID creatorId = source.getPlayer() != null ? source.getPlayer().getUuid() : UUID.nameUUIDFromBytes("mossman-system".getBytes());
             String creatorName = source.getPlayer() != null ? source.getPlayer().getName().getString() : "Server";
 
+            String upperPrefix = prefix.toUpperCase();
             MossManMod.getCreateProjectUseCase().execute(projectBuilder, creatorId, creatorName);
-            source.sendMessage(Text.literal("Created Project: " + name + " [" + prefix.toUpperCase() + "]").formatted(Formatting.GREEN));
+            
+            MutableText response = TuiHelper.translatable("mossman.command.project.created", name).formatted(Formatting.GREEN);
+            response.append(TuiHelper.createRunLink(
+                    "[" + upperPrefix + "]",
+                    "/mossman project view " + upperPrefix,
+                    TuiHelper.translatable("mossman.command.project.view_hover").getString(),
+                    Formatting.GOLD
+            ));
+            source.sendMessage(response);
             return 1;
         } catch (Exception e) {
             source.sendMessage(Text.literal("Failed to create project: " + e.getMessage()).formatted(Formatting.RED));
@@ -166,7 +209,7 @@ public class ProjectCommand {
     private static int deleteProject(CommandContext<ServerCommandSource> context) {
         ServerCommandSource source = context.getSource();
         String prefix = StringArgumentType.getString(context, "prefix");
-        var project = MossManMod.getProjectRepository().findAll().stream()
+        var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream()
                 .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix))
                 .findFirst().orElse(null);
 
@@ -192,7 +235,7 @@ public class ProjectCommand {
     private static int updateProject(CommandContext<ServerCommandSource> context) {
         ServerCommandSource source = context.getSource();
         String prefix = StringArgumentType.getString(context, "prefix");
-        var project = MossManMod.getProjectRepository().findAll().stream()
+        var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream()
                 .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix))
                 .findFirst().orElse(null);
 
@@ -216,7 +259,7 @@ public class ProjectCommand {
     private static int listMembers(CommandContext<ServerCommandSource> context) {
         ServerCommandSource source = context.getSource();
         String prefix = StringArgumentType.getString(context, "prefix");
-        var project = MossManMod.getProjectRepository().findAll().stream()
+        var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream()
                 .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix))
                 .findFirst().orElse(null);
 
@@ -230,8 +273,18 @@ public class ProjectCommand {
             return 0;
         }
 
+        int page = 1;
+        try { page = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "page"); } catch (Exception ignored) {}
+        
+        int pageSize = 10;
+        int offset = (page - 1) * pageSize;
+
+        var members = MossManMod.getMemberRepository().findByProjectId(project.getId(), offset, pageSize);
+        long totalMembers = MossManMod.getMemberRepository().countByProjectId(project.getId());
+        int totalPages = (int) Math.ceil((double) totalMembers / pageSize);
+
         source.sendMessage(Text.literal("--- Members of " + project.getName() + " ---").formatted(Formatting.AQUA));
-        for (var member : project.getMembers()) {
+        for (var member : members) {
             MutableText mText = Text.literal("- " + member.username() + " (").formatted(Formatting.WHITE)
                     .append(Text.literal(member.permission().name()).formatted(Formatting.YELLOW))
                     .append(Text.literal(") ").formatted(Formatting.WHITE));
@@ -240,6 +293,20 @@ public class ProjectCommand {
             }
             source.sendMessage(mText);
         }
+
+        // Pagination footer
+        if (totalPages > 1) {
+            MutableText nav = Text.empty();
+            if (page > 1) {
+                nav.append(TuiHelper.createRunLink(TuiHelper.translatable("mossman.pagination.prev").getString(), String.format("/mossman project member list %s %d", prefix, page - 1), "Previous Page", Formatting.GOLD)).append(" ");
+            }
+            nav.append(TuiHelper.translatable("mossman.pagination.page_info", page, totalPages).formatted(Formatting.GRAY));
+            if (page < totalPages) {
+                nav.append(" ").append(TuiHelper.createRunLink(TuiHelper.translatable("mossman.pagination.next").getString(), String.format("/mossman project member list %s %d", prefix, page + 1), "Next Page", Formatting.GOLD));
+            }
+            source.sendMessage(nav);
+        }
+
         return 1;
     }
 
@@ -249,7 +316,7 @@ public class ProjectCommand {
             String prefix = StringArgumentType.getString(context, "prefix");
             var targetProfiles = GameProfileArgumentType.getProfileArgument(context, "player");
             Permission perm = Permission.valueOf(StringArgumentType.getString(context, "permission").toUpperCase());
-            var project = MossManMod.getProjectRepository().findAll().stream()
+            var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream()
                     .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix))
                     .findFirst().orElseThrow(() -> new IllegalArgumentException("Project not found"));
 
@@ -272,7 +339,7 @@ public class ProjectCommand {
             String prefix = StringArgumentType.getString(context, "prefix");
             var targetProfiles = GameProfileArgumentType.getProfileArgument(context, "player");
             var patch = NbtPatchParser.toMap(NbtCompoundArgumentType.getNbtCompound(context, "patch"));
-            var project = MossManMod.getProjectRepository().findAll().stream()
+            var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream()
                     .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix))
                     .findFirst().orElseThrow(() -> new IllegalArgumentException("Project not found"));
 
@@ -293,7 +360,7 @@ public class ProjectCommand {
         try {
             String prefix = StringArgumentType.getString(context, "prefix");
             var targetProfiles = GameProfileArgumentType.getProfileArgument(context, "player");
-            var project = MossManMod.getProjectRepository().findAll().stream()
+            var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream()
                     .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix))
                     .findFirst().orElseThrow(() -> new IllegalArgumentException("Project not found"));
 
@@ -314,7 +381,7 @@ public class ProjectCommand {
         try {
             String prefix = StringArgumentType.getString(context, "prefix");
             var entry = GameProfileArgumentType.getProfileArgument(context, "player").iterator().next();
-            var project = MossManMod.getProjectRepository().findAll().stream()
+            var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream()
                     .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix))
                     .findFirst().orElseThrow(() -> new IllegalArgumentException("Project not found"));
 

@@ -7,7 +7,9 @@ import java.util.Optional;
 public interface ProjectRepository {
     Project save(Project project);
     Optional<Project> findById(long id);
-    List<Project> findAll();
-    List<Project> findAllForUser(java.util.UUID userId);
+    List<Project> findAll(int offset, int limit);
+    List<Project> findAllForUser(java.util.UUID userId, int offset, int limit);
+    long countAll();
+    long countAllForUser(java.util.UUID userId);
     void delete(long id);
 }

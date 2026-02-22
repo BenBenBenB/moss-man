@@ -29,7 +29,7 @@ public class OrmLiteProjectRepository implements ProjectRepository {
             projectDao.createOrUpdate(dbModel);
 
             // Orphan removal: Delete members from DB that are not in the current project entity
-            List<Member> existingInDb = memberRepository.findByProjectId(dbModel.getId());
+            List<Member> existingInDb = memberRepository.findByProjectId(dbModel.getId(), 0, Integer.MAX_VALUE);
             List<java.util.UUID> currentUuids = project.getMembers().stream()
                     .map(Member::uuid)
                     .collect(Collectors.toList());
@@ -62,9 +62,12 @@ public class OrmLiteProjectRepository implements ProjectRepository {
     }
 
     @Override
-    public List<Project> findAll() {
+    public List<Project> findAll(int offset, int limit) {
         try {
-            return projectDao.queryForAll().stream()
+            return projectDao.queryBuilder()
+                    .offset((long) offset)
+                    .limit((long) limit)
+                    .query().stream()
                     .map(this::hydrate)
                     .collect(Collectors.toList());
         } catch (SQLException e) {
@@ -73,12 +76,31 @@ public class OrmLiteProjectRepository implements ProjectRepository {
     }
 
     @Override
-    public List<Project> findAllForUser(java.util.UUID userId) {
+    public List<Project> findAllForUser(java.util.UUID userId, int offset, int limit) {
         // Simple implementation for now: find all and filter by permission checker
-        // In a real high-scale app, we'd do a join query
-        return findAll().stream()
+        // This is inefficient but consistent with previous implementation
+        // A better way would be using custom count/findAll with pagination
+        return findAll(0, Integer.MAX_VALUE).stream()
                 .filter(p -> com.mossman.domain.auth.PermissionChecker.getEffectivePermission(p, userId) != com.mossman.domain.entities.Permission.FORBID)
+                .skip(offset)
+                .limit(limit)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public long countAll() {
+        try {
+            return projectDao.countOf();
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to count projects", e);
+        }
+    }
+
+    @Override
+    public long countAllForUser(java.util.UUID userId) {
+        return findAll(0, Integer.MAX_VALUE).stream()
+                .filter(p -> com.mossman.domain.auth.PermissionChecker.getEffectivePermission(p, userId) != com.mossman.domain.entities.Permission.FORBID)
+                .count();
     }
 
     @Override
@@ -95,7 +117,7 @@ public class OrmLiteProjectRepository implements ProjectRepository {
     }
 
     private Project hydrate(ProjectDb db) {
-        List<Member> members = memberRepository.findByProjectId(db.getId());
+        List<Member> members = memberRepository.findByProjectId(db.getId(), 0, Integer.MAX_VALUE);
         return db.toDomain(members);
     }
 }

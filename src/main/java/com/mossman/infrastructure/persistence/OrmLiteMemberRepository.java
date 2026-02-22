@@ -31,12 +31,25 @@ public class OrmLiteMemberRepository implements MemberRepository {
     }
 
     @Override
-    public List<Member> findByProjectId(long projectId) {
+    public List<Member> findByProjectId(long projectId, int offset, int limit) {
         try {
-            List<MemberDb> dbList = memberDao.queryForEq("project_id", projectId);
+            List<MemberDb> dbList = memberDao.queryBuilder()
+                    .offset((long) offset)
+                    .limit((long) limit)
+                    .where().eq("project_id", projectId)
+                    .query();
             return dbList.stream().map(db -> db.toDomain(projectId)).collect(Collectors.toList());
         } catch (SQLException e) {
             throw new RuntimeException("Failed to find members for project", e);
+        }
+    }
+
+    @Override
+    public long countByProjectId(long projectId) {
+        try {
+            return memberDao.queryBuilder().where().eq("project_id", projectId).countOf();
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to count members", e);
         }
     }
 

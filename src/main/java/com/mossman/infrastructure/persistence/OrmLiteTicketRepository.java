@@ -43,9 +43,13 @@ public class OrmLiteTicketRepository implements TicketRepository {
     }
 
     @Override
-    public List<Ticket> findByProjectId(long projectId) {
+    public List<Ticket> findByProjectId(long projectId, int offset, int limit) {
         try {
-            return ticketDao.queryForEq("projectId", projectId).stream()
+            return ticketDao.queryBuilder()
+                    .offset((long) offset)
+                    .limit((long) limit)
+                    .where().eq("projectId", projectId)
+                    .query().stream()
                     .map(TicketDb::toDomain)
                     .collect(Collectors.toList());
         } catch (SQLException e) {
@@ -54,27 +58,53 @@ public class OrmLiteTicketRepository implements TicketRepository {
     }
 
     @Override
-    public List<Ticket> findByProjectId(long projectId, TicketFilter filter) {
+    public List<Ticket> findByProjectId(long projectId, TicketFilter filter, int offset, int limit) {
         try {
             QueryBuilder<TicketDb, Long> qb = ticketDao.queryBuilder();
+            qb.offset((long) offset).limit((long) limit);
             Where<TicketDb, Long> where = qb.where().eq("projectId", projectId);
-            if (filter.status().isPresent()) {
-                where.and().eq("status", filter.status().get().toUpperCase());
-            }
-            if (filter.type().isPresent()) {
-                where.and().eq("type", filter.type().get());
-            }
-            if (filter.priority().isPresent()) {
-                where.and().eq("priority", filter.priority().get().toUpperCase());
-            }
-            if (filter.title().isPresent()) {
-                where.and().like("title", "%" + filter.title().get() + "%");
-            }
+            applyFilter(where, filter);
             return qb.query().stream()
                     .map(TicketDb::toDomain)
                     .collect(Collectors.toList());
         } catch (SQLException e) {
             throw new RuntimeException("Failed to find filtered tickets", e);
+        }
+    }
+
+    @Override
+    public long countByProjectId(long projectId) {
+        try {
+            return ticketDao.queryBuilder().where().eq("projectId", projectId).countOf();
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to count tickets", e);
+        }
+    }
+
+    @Override
+    public long countByProjectId(long projectId, TicketFilter filter) {
+        try {
+            QueryBuilder<TicketDb, Long> qb = ticketDao.queryBuilder();
+            Where<TicketDb, Long> where = qb.where().eq("projectId", projectId);
+            applyFilter(where, filter);
+            return qb.countOf();
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to count filtered tickets", e);
+        }
+    }
+
+    private void applyFilter(Where<TicketDb, Long> where, TicketFilter filter) throws SQLException {
+        if (filter.status().isPresent()) {
+            where.and().eq("status", filter.status().get().toUpperCase());
+        }
+        if (filter.type().isPresent()) {
+            where.and().eq("type", filter.type().get());
+        }
+        if (filter.priority().isPresent()) {
+            where.and().eq("priority", filter.priority().get().toUpperCase());
+        }
+        if (filter.title().isPresent()) {
+            where.and().like("title", "%" + filter.title().get() + "%");
         }
     }
 
