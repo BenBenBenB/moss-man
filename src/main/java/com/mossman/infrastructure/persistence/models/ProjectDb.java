@@ -21,9 +21,6 @@ public class ProjectDb {
     @DatabaseField
     private String description;
 
-    @DatabaseField(canBeNull = false)
-    private UUID owner;
-
     @DatabaseField
     private String iconTexture;
 
@@ -41,22 +38,26 @@ public class ProjectDb {
         this.ticketPrefix = project.getTicketPrefix();
         this.name = project.getName();
         this.description = project.getDescription();
-        this.owner = project.getOwner();
+        // owner removed; will be handled via members table
         this.iconTexture = project.getIconTexture();
         this.externalUserPermission = project.getExternalUserPermission();
         this.textColor = project.getTextColor();
     }
 
     public Project toDomain() {
+        return toDomain(java.util.Collections.emptyList());
+    }
+
+    public Project toDomain(java.util.List<com.mossman.domain.entities.Member> members) {
         return Project.builder()
                 .id(id)
                 .ticketPrefix(ticketPrefix)
                 .name(name)
                 .description(description)
-                .owner(owner)
                 .iconTexture(iconTexture)
                 .externalUserPermission(externalUserPermission)
                 .textColor(textColor)
+                .members(members)
                 .build();
     }
 
@@ -69,8 +70,6 @@ public class ProjectDb {
     public void setName(String name) { this.name = name; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
-    public UUID getOwner() { return owner; }
-    public void setOwner(UUID owner) { this.owner = owner; }
     public String getIconTexture() { return iconTexture; }
     public void setIconTexture(String iconTexture) { this.iconTexture = iconTexture; }
     public Permission getExternalUserPermission() { return externalUserPermission; }

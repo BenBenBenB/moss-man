@@ -11,11 +11,9 @@ import com.mossman.infrastructure.config.ConfigManager;
 import com.mossman.infrastructure.events.SimpleEventBus;
 import com.mossman.infrastructure.persistence.DatabaseManager;
 import com.mossman.infrastructure.persistence.OrmLiteProjectRepository;
+import com.mossman.infrastructure.persistence.OrmLiteMemberRepository;
 import com.mossman.infrastructure.persistence.OrmLiteTicketRepository;
-import com.mossman.domain.usecases.CreateProjectUseCase;
-import com.mossman.domain.usecases.CreateTicketUseCase;
-import com.mossman.domain.usecases.UpdateTicketUseCase;
-import com.mossman.domain.usecases.UpdateProjectUseCase;
+import com.mossman.domain.usecases.*;
 
 import java.io.File;
 import java.sql.SQLException;
@@ -26,12 +24,19 @@ public class MossManMod implements ModInitializer {
 
     private static DatabaseManager databaseManager;
     private static SimpleEventBus eventBus;
+    
     private static CreateProjectUseCase createProjectUseCase;
     private static CreateTicketUseCase createTicketUseCase;
     private static UpdateTicketUseCase updateTicketUseCase;
     private static UpdateProjectUseCase updateProjectUseCase;
+    private static AddMemberUseCase addMemberUseCase;
+    private static UpdateMemberUseCase updateMemberUseCase;
+    private static RemoveMemberUseCase removeMemberUseCase;
+    private static TransferOwnershipUseCase transferOwnershipUseCase;
+
     private static OrmLiteProjectRepository projectRepository;
     private static OrmLiteTicketRepository ticketRepository;
+    private static OrmLiteMemberRepository memberRepository;
 
     @Override
     public void onInitialize() {
@@ -45,13 +50,19 @@ public class MossManMod implements ModInitializer {
             databaseManager = new DatabaseManager(dbUrl);
             eventBus = new SimpleEventBus();
             
-            projectRepository = new OrmLiteProjectRepository(databaseManager.getProjectDao());
+            memberRepository = new OrmLiteMemberRepository(databaseManager.getMemberDao());
+            projectRepository = new OrmLiteProjectRepository(databaseManager.getProjectDao(), memberRepository);
             ticketRepository = new OrmLiteTicketRepository(databaseManager.getTicketDao());
             
             createProjectUseCase = new CreateProjectUseCase(projectRepository, eventBus);
-            createTicketUseCase = new CreateTicketUseCase(ticketRepository, eventBus);
-            updateTicketUseCase = new UpdateTicketUseCase(ticketRepository, eventBus);
+            createTicketUseCase = new CreateTicketUseCase(ticketRepository, projectRepository, eventBus);
+            updateTicketUseCase = new UpdateTicketUseCase(ticketRepository, projectRepository, eventBus);
             updateProjectUseCase = new UpdateProjectUseCase(projectRepository, eventBus);
+            addMemberUseCase = new AddMemberUseCase(projectRepository);
+            updateMemberUseCase = new UpdateMemberUseCase(projectRepository);
+            removeMemberUseCase = new RemoveMemberUseCase(projectRepository);
+            transferOwnershipUseCase = new TransferOwnershipUseCase(projectRepository);
+
             LOGGER.info("Database and Use Cases initialized successfully.");
         } catch (SQLException e) {
             LOGGER.error("Failed to initialize Database Manager", e);
@@ -71,6 +82,11 @@ public class MossManMod implements ModInitializer {
     public static CreateTicketUseCase getCreateTicketUseCase() { return createTicketUseCase; }
     public static UpdateTicketUseCase getUpdateTicketUseCase() { return updateTicketUseCase; }
     public static UpdateProjectUseCase getUpdateProjectUseCase() { return updateProjectUseCase; }
+    public static AddMemberUseCase getAddMemberUseCase() { return addMemberUseCase; }
+    public static UpdateMemberUseCase getUpdateMemberUseCase() { return updateMemberUseCase; }
+    public static RemoveMemberUseCase getRemoveMemberUseCase() { return removeMemberUseCase; }
+    public static TransferOwnershipUseCase getTransferOwnershipUseCase() { return transferOwnershipUseCase; }
     public static OrmLiteProjectRepository getProjectRepository() { return projectRepository; }
     public static OrmLiteTicketRepository getTicketRepository() { return ticketRepository; }
+    public static DatabaseManager getDatabaseManager() { return databaseManager; }
 }

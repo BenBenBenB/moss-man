@@ -2,14 +2,13 @@ package com.mossman.domain.entities;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
+import java.util.Optional;
 
 public class Project {
     private final long id;
     private final String ticketPrefix;
     private final String name;
     private final String description;
-    private final UUID owner;
     private final String iconTexture;
     private final List<Status> statuses;
     private final List<TicketType> ticketTypes;
@@ -18,14 +17,13 @@ public class Project {
     private final Permission externalUserPermission;
     private final String textColor;
 
-    public Project(long id, String ticketPrefix, String name, String description, UUID owner, String iconTexture,
+    public Project(long id, String ticketPrefix, String name, String description, String iconTexture,
                    List<Status> statuses, List<TicketType> ticketTypes, List<RelationshipType> relationshipTypes,
                    List<Member> members, Permission externalUserPermission, String textColor) {
         this.id = id;
         this.ticketPrefix = ticketPrefix;
         this.name = name;
         this.description = description;
-        this.owner = owner;
         this.iconTexture = iconTexture;
         this.statuses = new ArrayList<>(statuses);
         this.ticketTypes = new ArrayList<>(ticketTypes);
@@ -39,7 +37,6 @@ public class Project {
     public String getTicketPrefix() { return ticketPrefix; }
     public String getName() { return name; }
     public String getDescription() { return description; }
-    public UUID getOwner() { return owner; }
     public String getIconTexture() { return iconTexture; }
     public List<Status> getStatuses() { return List.copyOf(statuses); }
     public List<TicketType> getTicketTypes() { return List.copyOf(ticketTypes); }
@@ -47,7 +44,14 @@ public class Project {
     public List<Member> getMembers() { return List.copyOf(members); }
     public Permission getExternalUserPermission() { return externalUserPermission; }
     public String getTextColor() { return textColor; }
-    
+
+    /** Returns the member holding OWNER permission, if one exists. */
+    public Optional<Member> getOwner() {
+        return members.stream()
+                .filter(m -> m.permission() == Permission.OWNER)
+                .findFirst();
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -57,7 +61,6 @@ public class Project {
         private String ticketPrefix;
         private String name;
         private String description;
-        private UUID owner;
         private String iconTexture;
         private List<Status> statuses = new ArrayList<>();
         private List<TicketType> ticketTypes = new ArrayList<>();
@@ -70,7 +73,6 @@ public class Project {
         public Builder ticketPrefix(String ticketPrefix) { this.ticketPrefix = ticketPrefix; return this; }
         public Builder name(String name) { this.name = name; return this; }
         public Builder description(String description) { this.description = description; return this; }
-        public Builder owner(UUID owner) { this.owner = owner; return this; }
         public Builder iconTexture(String iconTexture) { this.iconTexture = iconTexture; return this; }
         public Builder statuses(List<Status> statuses) { this.statuses = statuses; return this; }
         public Builder ticketTypes(List<TicketType> ticketTypes) { this.ticketTypes = ticketTypes; return this; }
@@ -80,7 +82,7 @@ public class Project {
         public Builder textColor(String textColor) { this.textColor = textColor; return this; }
 
         public Project build() {
-            return new Project(id, ticketPrefix, name, description, owner, iconTexture, statuses, ticketTypes, relationshipTypes, members, externalUserPermission, textColor);
+            return new Project(id, ticketPrefix, name, description, iconTexture, statuses, ticketTypes, relationshipTypes, members, externalUserPermission, textColor);
         }
     }
 }

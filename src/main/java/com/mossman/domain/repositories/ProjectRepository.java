@@ -8,5 +8,6 @@ public interface ProjectRepository {
     Project save(Project project);
     Optional<Project> findById(long id);
     List<Project> findAll();
+    List<Project> findAllForUser(java.util.UUID userId);
     void delete(long id);
 }

@@ -15,9 +15,14 @@ public class CreateProjectUseCase {
         this.eventBus = eventBus;
     }
 
-    public Project execute(Project.Builder projectBuilder) {
-        Project project = projectBuilder.build();
-        // Here we would ideally have more validation logic
+    public Project execute(Project.Builder projectBuilder, java.util.UUID creatorId, String creatorUsername) {
+        // Initial owner member
+        com.mossman.domain.entities.Member owner = new com.mossman.domain.entities.Member(0, creatorId, creatorUsername, "Project Owner", com.mossman.domain.entities.Permission.OWNER);
+        
+        Project project = projectBuilder
+                .members(java.util.List.of(owner))
+                .build();
+        
         Project savedProject = projectRepository.save(project);
         eventBus.publish(new ProjectCreatedEvent(savedProject, Instant.now()));
         return savedProject;

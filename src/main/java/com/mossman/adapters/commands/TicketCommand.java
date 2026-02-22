@@ -81,6 +81,11 @@ public class TicketCommand {
         }
 
         var project = projectOpt.get();
+        if (!com.mossman.domain.auth.PermissionChecker.canView(project, source)) {
+            source.sendMessage(Text.literal("You do not have permission to view tickets for this project.").formatted(Formatting.RED));
+            return 0;
+        }
+
         var headerText = filter.hasAny()
                 ? TuiHelper.translatable("mossman.command.ticket.list.header", prefix).getString() + " [filtered]"
                 : TuiHelper.translatable("mossman.command.ticket.list.header", prefix).getString();
@@ -113,13 +118,7 @@ public class TicketCommand {
                 TuiHelper.translatable("mossman.command.ticket.create_hover").getString(),
                 Formatting.GOLD
         );
-        MutableText backBtn = TuiHelper.createRunLink(
-                TuiHelper.translatable("mossman.command.ticket.back_btn").getString(),
-                "/mossman project list",
-                TuiHelper.translatable("mossman.command.ticket.back_hover").getString(),
-                Formatting.BLUE
-        );
-        source.sendMessage(createBtn.append(Text.literal(" ")).append(backBtn));
+        source.sendMessage(createBtn);
 
         return 1;
     }
@@ -136,12 +135,7 @@ public class TicketCommand {
         
         String prefix = parts[0];
         int number;
-        try {
-            number = Integer.parseInt(parts[1]);
-        } catch (NumberFormatException e) {
-             source.sendMessage(Text.literal("Invalid ticket number.").formatted(Formatting.RED));
-             return 0;
-        }
+        try { number = Integer.parseInt(parts[1]); } catch (Exception e) { return 0; }
 
         var projectOpt = com.mossman.MossManMod.getProjectRepository().findAll().stream()
                 .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix))
@@ -152,7 +146,13 @@ public class TicketCommand {
             return 0;
         }
         
-        var ticketOpt = com.mossman.MossManMod.getTicketRepository().findByProjectId(projectOpt.get().getId()).stream()
+        var project = projectOpt.get();
+        if (!com.mossman.domain.auth.PermissionChecker.canView(project, source)) {
+            source.sendMessage(Text.literal("You do not have permission to view tickets for this project.").formatted(Formatting.RED));
+            return 0;
+        }
+
+        var ticketOpt = com.mossman.MossManMod.getTicketRepository().findByProjectId(project.getId()).stream()
                 .filter(t -> t.getTicketNumber() == number)
                 .findFirst();
 
@@ -165,16 +165,13 @@ public class TicketCommand {
         source.sendMessage(Text.literal("--- Ticket: " + key + " ---").formatted(Formatting.AQUA));
         source.sendMessage(Text.literal("Title: " + ticket.getTitle()).formatted(Formatting.WHITE));
         source.sendMessage(Text.literal("Status: " + ticket.getStatus()).formatted(Formatting.YELLOW));
-        source.sendMessage(Text.literal("Priority: " + (ticket.getPriority() != null ? ticket.getPriority().name() : "FORBID")).formatted(Formatting.WHITE));
         source.sendMessage(Text.literal("Description: " + (ticket.getDescription() != null ? ticket.getDescription() : "None")).formatted(Formatting.GRAY));
 
-        MutableText updateBtn = TuiHelper.createSuggestLink(
-                "[Update Status]",
-                "/mossman ticket status " + key + " ",
-                "Update ticket status",
-                Formatting.GOLD
-        );
-        source.sendMessage(updateBtn);
+        if (com.mossman.domain.auth.PermissionChecker.hasPermission(project, source, com.mossman.domain.entities.Permission.EDITOR)) {
+            MutableText updateBtn = TuiHelper.createSuggestLink("[Update Status] ", "/mossman ticket status " + key + " ", "Update ticket status", Formatting.GOLD);
+            MutableText editBtn = TuiHelper.createSuggestLink("[Edit] ", "/mossman ticket update " + key + " ", "Edit ticket fields", Formatting.YELLOW);
+            source.sendMessage(updateBtn.append(editBtn));
+        }
 
         return 1;
     }
@@ -195,30 +192,19 @@ public class TicketCommand {
 
         try {
             var project = projectOpt.get();
+            java.util.UUID rId = source.getPlayer() != null ? source.getPlayer().getUuid() : java.util.UUID.randomUUID();
             int nextNumber = com.mossman.MossManMod.getTicketRepository().getNextTicketNumber(project.getId());
             
             var ticket = new com.mossman.domain.entities.Ticket(
-                    0, 
-                    project.getId(), 
-                    nextNumber, 
-                    title, 
-                    "", 
-                    "Task", 
-                    "OPEN", 
+                    0, project.getId(), nextNumber, title, "", "Task", "OPEN", 
                     com.mossman.domain.entities.Priority.MEDIUM, 
-                    java.util.Collections.emptyList(), 
-                    java.util.Collections.emptyList(), 
-                    source.getPlayer() != null ? source.getPlayer().getUuid() : java.util.UUID.randomUUID(), 
-                    java.util.Collections.emptyList(), 
-                    System.currentTimeMillis(), 
-                    System.currentTimeMillis(), 
-                    null
+                    java.util.Collections.emptyList(), java.util.Collections.emptyList(), 
+                    rId, java.util.Collections.emptyList(), 
+                    System.currentTimeMillis(), System.currentTimeMillis(), null
             );
 
-            var savedTicket = com.mossman.MossManMod.getCreateTicketUseCase().execute(ticket);
-            
-            String key = savedTicket.getUserFriendlyKey(prefix);
-            source.sendMessage(Text.literal("Created Ticket: " + title + " [" + key + "]").formatted(Formatting.GREEN));
+            var savedTicket = com.mossman.MossManMod.getCreateTicketUseCase().execute(ticket, rId);
+            source.sendMessage(Text.literal("Created Ticket: " + title + " [" + savedTicket.getUserFriendlyKey(prefix) + "]").formatted(Formatting.GREEN));
             return 1;
         } catch (Exception e) {
             source.sendMessage(Text.literal("Failed to create ticket: " + e.getMessage()).formatted(Formatting.RED));
@@ -229,42 +215,25 @@ public class TicketCommand {
     private static int updateStatus(CommandContext<ServerCommandSource> context) {
         ServerCommandSource source = context.getSource();
         String key = StringArgumentType.getString(context, "key");
-        String newStatus = StringArgumentType.getString(context, "newStatus");
+        String newStatus = StringArgumentType.getString(context, "newStatus").toUpperCase();
         
-        String[] parts = key.split("-");
-        if (parts.length != 2) return 0;
-        
-        String prefix = parts[0];
-        int number;
-        try { number = Integer.parseInt(parts[1]); } catch (Exception e) { return 0; }
-
-        var projectOpt = com.mossman.MossManMod.getProjectRepository().findAll().stream()
-                .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix))
-                .findFirst();
-
-        if (projectOpt.isEmpty()) return 0;
-        
-        var ticketOpt = com.mossman.MossManMod.getTicketRepository().findByProjectId(projectOpt.get().getId()).stream()
-                .filter(t -> t.getTicketNumber() == number)
-                .findFirst();
-
-        if (ticketOpt.isEmpty()) {
-            source.sendMessage(Text.literal("Ticket not found: " + key).formatted(Formatting.RED));
-            return 0;
-        }
-
         try {
-            var oldTicket = ticketOpt.get();
-            var newTicket = new com.mossman.domain.entities.Ticket(
-                    oldTicket.getId(), oldTicket.getProjectId(), oldTicket.getTicketNumber(),
-                    oldTicket.getTitle(), oldTicket.getDescription(), oldTicket.getType(),
-                    newStatus.toUpperCase(), oldTicket.getPriority(), oldTicket.getAssignees(),
-                    oldTicket.getObservers(), oldTicket.getCreator(), oldTicket.getLabels(),
-                    oldTicket.getCreatedAt(), System.currentTimeMillis(), oldTicket.getSprintId()
-            );
+            String prefix = key.split("-")[0];
+            int number = Integer.parseInt(key.split("-")[1]);
+
+            var project = com.mossman.MossManMod.getProjectRepository().findAll().stream()
+                    .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElseThrow(() -> new IllegalArgumentException("Project not found"));
+
+            var ticket = com.mossman.MossManMod.getTicketRepository().findByProjectId(project.getId()).stream()
+                    .filter(t -> t.getTicketNumber() == number).findFirst().orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
+
+            java.util.UUID rId = source.getPlayer() != null ? source.getPlayer().getUuid() : java.util.UUID.randomUUID();
             
-            com.mossman.MossManMod.getTicketRepository().save(newTicket);
-            source.sendMessage(Text.literal("Updated " + key + " status to " + newStatus.toUpperCase()).formatted(Formatting.GREEN));
+            // Re-using UpdateTicketUseCase but with status patch
+            java.util.Map<String, String> patch = java.util.Map.of("status", newStatus);
+            com.mossman.MossManMod.getUpdateTicketUseCase().execute(ticket.getId(), rId, patch);
+            
+            source.sendMessage(Text.literal("Updated " + key + " status to " + newStatus).formatted(Formatting.GREEN));
             return 1;
         } catch (Exception e) {
              source.sendMessage(Text.literal("Failed to update status: " + e.getMessage()).formatted(Formatting.RED));
@@ -276,8 +245,21 @@ public class TicketCommand {
         ServerCommandSource source = context.getSource();
         String key = StringArgumentType.getString(context, "key");
         String message = StringArgumentType.getString(context, "message");
-        source.sendMessage(Text.literal("Added comment to " + key + " (Comments not yet persisted)").formatted(Formatting.YELLOW));
-        return 1;
+
+        try {
+            String prefix = key.split("-")[0];
+            var project = com.mossman.MossManMod.getProjectRepository().findAll().stream()
+                    .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
+
+            if (project != null) {
+                com.mossman.domain.auth.PermissionChecker.require(project, source, com.mossman.domain.entities.Permission.CREATOR);
+            }
+            source.sendMessage(Text.literal("Added comment to " + key + " (Comments not yet persisted)").formatted(Formatting.YELLOW));
+            return 1;
+        } catch (Exception e) {
+            source.sendMessage(Text.literal("Error: " + e.getMessage()).formatted(Formatting.RED));
+            return 0;
+        }
     }
 
     private static int updateTicket(CommandContext<ServerCommandSource> context) {
@@ -285,42 +267,20 @@ public class TicketCommand {
         String key = StringArgumentType.getString(context, "key");
         var nbt = NbtCompoundArgumentType.getNbtCompound(context, "patch");
 
-        String[] parts = key.split("-");
-        if (parts.length != 2) {
-            source.sendMessage(Text.literal("Invalid ticket key format. Expected PREFIX-NUMBER").formatted(Formatting.RED));
-            return 0;
-        }
-        String prefix = parts[0];
-        int number;
-        try { number = Integer.parseInt(parts[1]); }
-        catch (NumberFormatException e) {
-            source.sendMessage(Text.literal("Invalid ticket number.").formatted(Formatting.RED));
-            return 0;
-        }
-
-        var projectOpt = com.mossman.MossManMod.getProjectRepository().findAll().stream()
-                .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix))
-                .findFirst();
-
-        if (projectOpt.isEmpty()) {
-            source.sendMessage(Text.literal("Project not found: " + prefix).formatted(Formatting.RED));
-            return 0;
-        }
-
-        var ticketOpt = com.mossman.MossManMod.getTicketRepository()
-                .findByProjectId(projectOpt.get().getId()).stream()
-                .filter(t -> t.getTicketNumber() == number)
-                .findFirst();
-
-        if (ticketOpt.isEmpty()) {
-            source.sendMessage(Text.literal("Ticket not found: " + key).formatted(Formatting.RED));
-            return 0;
-        }
-
         try {
+            String prefix = key.split("-")[0];
+            int number = Integer.parseInt(key.split("-")[1]);
+            var project = com.mossman.MossManMod.getProjectRepository().findAll().stream()
+                    .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElseThrow(() -> new IllegalArgumentException("Project not found"));
+
+            var ticket = com.mossman.MossManMod.getTicketRepository().findByProjectId(project.getId()).stream()
+                    .filter(t -> t.getTicketNumber() == number).findFirst().orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
+
+            java.util.UUID rId = source.getPlayer() != null ? source.getPlayer().getUuid() : java.util.UUID.randomUUID();
             var patch = NbtPatchParser.toMap(nbt);
-            var updated = com.mossman.MossManMod.getUpdateTicketUseCase().execute(ticketOpt.get().getId(), patch);
-            source.sendMessage(Text.literal("Updated ticket " + updated.getUserFriendlyKey(prefix) + ": " + updated.getTitle()).formatted(Formatting.GREEN));
+            com.mossman.MossManMod.getUpdateTicketUseCase().execute(ticket.getId(), rId, patch);
+            
+            source.sendMessage(Text.literal("Updated ticket " + key).formatted(Formatting.GREEN));
             return 1;
         } catch (Exception e) {
             source.sendMessage(Text.literal("Failed to update ticket: " + e.getMessage()).formatted(Formatting.RED));

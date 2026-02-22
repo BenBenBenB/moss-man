@@ -24,14 +24,18 @@ public class UpdateProjectUseCase {
     }
 
     /**
-     * @param projectId DB id of the project to patch
-     * @param patch     map of field name → new string value (from SNBT)
+     * @param projectId   DB id of the project to patch
+     * @param requesterId UUID of the user requesting the update
+     * @param patch       map of field name → new string value (from SNBT)
      * @return the updated Project
-     * @throws IllegalArgumentException if the project does not exist or a field value is invalid
+     * @throws IllegalArgumentException if the project does not exist
+     * @throws SecurityException if the requester does not have ADMIN permission
      */
-    public Project execute(long projectId, Map<String, String> patch) {
+    public Project execute(long projectId, java.util.UUID requesterId, Map<String, String> patch) {
         Project current = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found: id=" + projectId));
+
+        com.mossman.domain.auth.PermissionChecker.requireProjectAdmin(current, requesterId);
 
         String name                   = patch.getOrDefault("name",        current.getName());
         String description            = patch.getOrDefault("description", current.getDescription() != null ? current.getDescription() : "");
@@ -46,7 +50,6 @@ public class UpdateProjectUseCase {
                 .ticketPrefix(current.getTicketPrefix())
                 .name(name)
                 .description(description)
-                .owner(current.getOwner())
                 .iconTexture(iconTexture)
                 .textColor(textColor)
                 .statuses(current.getStatuses())
