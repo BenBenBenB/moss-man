@@ -54,6 +54,10 @@ public class ProjectCommand {
                                         .then(CommandManager.argument("player", GameProfileArgumentType.gameProfile())
                                                 .then(CommandManager.argument("permission", StringArgumentType.word())
                                                         .executes(ProjectCommand::addMember)))))
+                        .then(CommandManager.literal("view")
+                                .then(CommandManager.argument("prefix", StringArgumentType.word())
+                                        .then(CommandManager.argument("player", GameProfileArgumentType.gameProfile())
+                                                .executes(ProjectCommand::viewMember))))
                         .then(CommandManager.literal("update")
                                 .then(CommandManager.argument("prefix", StringArgumentType.word())
                                         .then(CommandManager.argument("player", GameProfileArgumentType.gameProfile())
@@ -67,6 +71,57 @@ public class ProjectCommand {
                                 .then(CommandManager.argument("prefix", StringArgumentType.word())
                                         .then(CommandManager.argument("player", GameProfileArgumentType.gameProfile())
                                                 .executes(ProjectCommand::transferOwnership)))))
+                .then(CommandManager.literal("status")
+                        .then(CommandManager.literal("add")
+                                .then(CommandManager.argument("prefix", StringArgumentType.word())
+                                        .then(CommandManager.argument("name", StringArgumentType.word())
+                                                .executes(ProjectCommand::addStatus))))
+                        .then(CommandManager.literal("list")
+                                .then(CommandManager.argument("prefix", StringArgumentType.word())
+                                        .executes(ProjectCommand::listStatuses)))
+                        .then(CommandManager.literal("view")
+                                .then(CommandManager.argument("prefix", StringArgumentType.word())
+                                        .then(CommandManager.argument("name", StringArgumentType.word())
+                                                .executes(ProjectCommand::viewStatus))))
+                        .then(CommandManager.literal("update")
+                                .then(CommandManager.argument("prefix", StringArgumentType.word())
+                                        .then(CommandManager.argument("name", StringArgumentType.word())
+                                                .then(CommandManager.argument("patch", NbtCompoundArgumentType.nbtCompound())
+                                                        .executes(ProjectCommand::updateStatus))))))
+                .then(CommandManager.literal("ticketType")
+                        .then(CommandManager.literal("add")
+                                .then(CommandManager.argument("prefix", StringArgumentType.word())
+                                        .then(CommandManager.argument("name", StringArgumentType.word())
+                                                .executes(ProjectCommand::addTicketType))))
+                        .then(CommandManager.literal("list")
+                                .then(CommandManager.argument("prefix", StringArgumentType.word())
+                                        .executes(ProjectCommand::listTicketTypes)))
+                        .then(CommandManager.literal("view")
+                                .then(CommandManager.argument("prefix", StringArgumentType.word())
+                                        .then(CommandManager.argument("name", StringArgumentType.word())
+                                                .executes(ProjectCommand::viewTicketType))))
+                        .then(CommandManager.literal("update")
+                                .then(CommandManager.argument("prefix", StringArgumentType.word())
+                                        .then(CommandManager.argument("name", StringArgumentType.word())
+                                                .then(CommandManager.argument("patch", NbtCompoundArgumentType.nbtCompound())
+                                                        .executes(ProjectCommand::updateTicketType))))))
+                .then(CommandManager.literal("relationshipType")
+                        .then(CommandManager.literal("add")
+                                .then(CommandManager.argument("prefix", StringArgumentType.word())
+                                        .then(CommandManager.argument("name", StringArgumentType.word())
+                                                .executes(ProjectCommand::addRelationshipType))))
+                        .then(CommandManager.literal("list")
+                                .then(CommandManager.argument("prefix", StringArgumentType.word())
+                                        .executes(ProjectCommand::listRelationshipTypes)))
+                        .then(CommandManager.literal("view")
+                                .then(CommandManager.argument("prefix", StringArgumentType.word())
+                                        .then(CommandManager.argument("name", StringArgumentType.word())
+                                                .executes(ProjectCommand::viewRelationshipType))))
+                        .then(CommandManager.literal("update")
+                                .then(CommandManager.argument("prefix", StringArgumentType.word())
+                                        .then(CommandManager.argument("name", StringArgumentType.word())
+                                                .then(CommandManager.argument("patch", NbtCompoundArgumentType.nbtCompound())
+                                                        .executes(ProjectCommand::updateRelationshipType))))))
                 .build();
 
         rootNode.addChild(projectNode);
@@ -160,6 +215,14 @@ public class ProjectCommand {
         
         boolean isEditor = PermissionChecker.hasPermission(project, source, Permission.EDITOR);
 
+        // Ticket Prefix
+        MutableText prefixLine = Text.empty();
+        if (isEditor) {
+            prefixLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project update " + project.getTicketPrefix() + " {ticketPrefix:\"" + project.getTicketPrefix() + "\"}", TuiHelper.translatable("mossman.tui.ticket.edit_field_hover", "Ticket Prefix"), Formatting.GRAY));
+        }
+        prefixLine.append(Text.literal("Ticket Prefix: " + project.getTicketPrefix()).formatted(Formatting.WHITE));
+        source.sendMessage(prefixLine);
+
         // Name
         MutableText nameLine = Text.empty();
         if (isEditor) {
@@ -175,13 +238,47 @@ public class ProjectCommand {
         }
         descLine.append(Text.literal("Description: ").formatted(Formatting.GRAY).append(Text.literal(project.getDescription() != null ? project.getDescription() : "None").formatted(Formatting.WHITE)));
         source.sendMessage(descLine);
+
+        // Icon Texture
+        MutableText iconLine = Text.empty();
+        if (isEditor) {
+            iconLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project update " + project.getTicketPrefix() + " {iconTexture:\"" + (project.getIconTexture() != null ? project.getIconTexture() : "") + "\"}", TuiHelper.translatable("mossman.tui.ticket.edit_field_hover", "Icon Texture"), Formatting.GRAY));
+        }
+        iconLine.append(Text.literal("Icon Texture: " + (project.getIconTexture() != null ? project.getIconTexture() : "None")).formatted(Formatting.WHITE));
+        source.sendMessage(iconLine);
+
+        // Text Color
+        MutableText colorLine = Text.empty();
+        if (isEditor) {
+            colorLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project update " + project.getTicketPrefix() + " {textColor:\"" + (project.getTextColor() != null ? project.getTextColor() : "") + "\"}", TuiHelper.translatable("mossman.tui.ticket.edit_field_hover", "Text Color"), Formatting.GRAY));
+        }
+        colorLine.append(Text.literal("Text Color: " + (project.getTextColor() != null ? project.getTextColor() : "None")).formatted(Formatting.WHITE));
+        source.sendMessage(colorLine);
+
+        // External User Permission
+        MutableText extPermLine = Text.empty();
+        if (isEditor) {
+            extPermLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project update " + project.getTicketPrefix() + " {externalUserPermission:\"" + project.getExternalUserPermission().name() + "\"}", TuiHelper.translatable("mossman.tui.ticket.edit_field_hover", "External User Permission"), Formatting.GRAY));
+        }
+        extPermLine.append(Text.literal("External Permission: " + project.getExternalUserPermission().name()).formatted(Formatting.WHITE));
+        source.sendMessage(extPermLine);
         
-        source.sendMessage(Text.literal("Members: ").formatted(Formatting.GRAY).append(Text.literal(String.valueOf(project.getMembers().size())).formatted(Formatting.WHITE)));
+        MutableText membersLink = TuiHelper.createRunLink(TuiHelper.translatable("mossman.tui.common.view_btn").getString(), "/mossman project member list " + project.getTicketPrefix(), "View project members", Formatting.GOLD);
+        source.sendMessage(Text.literal("Members: ").formatted(Formatting.GRAY).append(Text.literal(project.getMembers().size() + " ").formatted(Formatting.WHITE)).append(membersLink));
+
+        MutableText statusesLink = TuiHelper.createRunLink(TuiHelper.translatable("mossman.tui.common.view_btn").getString(), "/mossman project status list " + project.getTicketPrefix(), "View project statuses", Formatting.GOLD);
+        source.sendMessage(Text.literal("Statuses: ").formatted(Formatting.GRAY).append(Text.literal(project.getStatuses().size() + " ").formatted(Formatting.WHITE)).append(statusesLink));
+
+        MutableText ticketTypesLink = TuiHelper.createRunLink(TuiHelper.translatable("mossman.tui.common.view_btn").getString(), "/mossman project ticketType list " + project.getTicketPrefix(), "View project ticket types", Formatting.GOLD);
+        source.sendMessage(Text.literal("Ticket Types: ").formatted(Formatting.GRAY).append(Text.literal(project.getTicketTypes().size() + " ").formatted(Formatting.WHITE)).append(ticketTypesLink));
+
+        MutableText relTypesLink = TuiHelper.createRunLink(TuiHelper.translatable("mossman.tui.common.view_btn").getString(), "/mossman project relationshipType list " + project.getTicketPrefix(), "View project relationship types", Formatting.GOLD);
+        source.sendMessage(Text.literal("Relationship Types: ").formatted(Formatting.GRAY).append(Text.literal(project.getRelationshipTypes().size() + " ").formatted(Formatting.WHITE)).append(relTypesLink));
+
         
         MutableText viewTicketsBtn = TuiHelper.createRunLink("[View Tickets] ", "/mossman ticket list " + project.getTicketPrefix(), "View tickets", Formatting.YELLOW);
-        MutableText viewMembersBtn = TuiHelper.createRunLink("[View Members] ", "/mossman project member list " + project.getTicketPrefix(), "View project members", Formatting.GOLD);
         
-        source.sendMessage(viewTicketsBtn.append(viewMembersBtn));
+        source.sendMessage(viewTicketsBtn);
         source.sendMessage(TuiHelper.translatable("mossman.tui.project.list.footer").formatted(Formatting.GRAY));
         
         return 1;
@@ -301,14 +398,23 @@ public class ProjectCommand {
         int totalPages = (int) Math.ceil((double) totalMembers / pageSize);
 
         source.sendMessage(Text.literal("--- Members of " + project.getName() + " ---").formatted(Formatting.AQUA));
-        for (var member : members) {
-            MutableText mText = Text.literal("- " + member.username() + " (").formatted(Formatting.WHITE)
-                    .append(Text.literal(member.permission().name()).formatted(Formatting.YELLOW))
-                    .append(Text.literal(") ").formatted(Formatting.WHITE));
-            if (member.title() != null && !member.title().isEmpty()) {
-                mText.append(Text.literal(member.title()).formatted(Formatting.GRAY));
+        if (members.isEmpty()) {
+            source.sendMessage(Text.literal("No members found.").formatted(Formatting.GRAY));
+        } else {
+            for (var member : members) {
+                MutableText mText = TuiHelper.createRunLink("[" + member.username() + "] ", "/mossman project member view " + prefix + " " + member.username(), "View member details", Formatting.GREEN)
+                        .append(Text.literal(member.username() + " (").formatted(Formatting.WHITE))
+                        .append(Text.literal(member.permission().name()).formatted(Formatting.YELLOW))
+                        .append(Text.literal(") ").formatted(Formatting.WHITE));
+                if (member.title() != null && !member.title().isEmpty()) {
+                    mText.append(Text.literal(member.title()).formatted(Formatting.GRAY));
+                }
+                source.sendMessage(mText);
             }
-            source.sendMessage(mText);
+        }
+
+        if (PermissionChecker.isOwner(project, source)) {
+            source.sendMessage(TuiHelper.createSuggestLink("[Add Member] ", "/mossman project member add " + prefix + " ", "Click to add a new member", Formatting.GOLD));
         }
 
         // Pagination footer
@@ -325,6 +431,63 @@ public class ProjectCommand {
         }
 
         return 1;
+    }
+
+    private static int viewMember(CommandContext<ServerCommandSource> context) {
+        ServerCommandSource source = context.getSource();
+        String prefix = StringArgumentType.getString(context, "prefix");
+        
+        var projectOpt = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream()
+                .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix))
+                .findFirst();
+
+        if (projectOpt.isEmpty()) {
+            source.sendMessage(Text.literal("Project not found: " + prefix).formatted(Formatting.RED));
+            return 0;
+        }
+
+        var project = projectOpt.get();
+        if (!PermissionChecker.canView(project, source)) {
+            source.sendMessage(Text.literal("You do not have permission to view members.").formatted(Formatting.RED));
+            return 0;
+        }
+
+        boolean isEditor = PermissionChecker.hasPermission(project, source, Permission.EDITOR);
+
+        try {
+            var targetProfiles = GameProfileArgumentType.getProfileArgument(context, "player");
+
+            for (var profile : targetProfiles) {
+                var memberOpt = MossManMod.getMemberRepository().findByProjectIdAndUuid(project.getId(), profile.id());
+                if (memberOpt.isEmpty()) {
+                    source.sendMessage(Text.literal("Member not found in project: " + profile.name()).formatted(Formatting.RED));
+                    continue;
+                }
+                var member = memberOpt.get();
+
+                source.sendMessage(Text.literal("--- Member: " + member.username() + " ---").formatted(Formatting.AQUA));
+
+                // Title
+                MutableText titleLine = Text.empty();
+                if (isEditor) {
+                    titleLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project member update " + prefix + " " + member.username() + " {title:\"" + (member.title() != null ? member.title() : "") + "\"}", TuiHelper.translatable("mossman.tui.ticket.edit_field_hover", "Title"), Formatting.GRAY));
+                }
+                titleLine.append(Text.literal("Title: " + (member.title() != null ? member.title() : "None")).formatted(Formatting.WHITE));
+                source.sendMessage(titleLine);
+
+                // Permission
+                MutableText permLine = Text.empty();
+                if (isEditor && PermissionChecker.isOwner(project, source)) {
+                    permLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project member update " + prefix + " " + member.username() + " {permission:\"" + member.permission().name() + "\"}", TuiHelper.translatable("mossman.tui.ticket.edit_field_hover", "Permission"), Formatting.GRAY));
+                }
+                permLine.append(Text.literal("Permission: " + member.permission().name()).formatted(Formatting.YELLOW));
+                source.sendMessage(permLine);
+            }
+            return 1;
+        } catch (Exception e) {
+            source.sendMessage(Text.literal("Error viewing member: " + e.getMessage()).formatted(Formatting.RED));
+            return 0;
+        }
     }
 
     private static int addMember(CommandContext<ServerCommandSource> context) {
@@ -370,6 +533,327 @@ public class ProjectCommand {
             source.sendMessage(Text.literal("Error updating member: " + e.getMessage()).formatted(Formatting.RED));
             return 0;
         }
+    }
+
+    private static int listStatuses(CommandContext<ServerCommandSource> context) {
+        ServerCommandSource source = context.getSource();
+        String prefix = StringArgumentType.getString(context, "prefix");
+        var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream().filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
+        if (project == null) { source.sendMessage(Text.literal("Project not found: " + prefix).formatted(Formatting.RED)); return 0; }
+        if (!PermissionChecker.canView(project, source)) { source.sendMessage(Text.literal("No permission.").formatted(Formatting.RED)); return 0; }
+
+        source.sendMessage(Text.literal("--- Statuses of " + project.getName() + " ---").formatted(Formatting.AQUA));
+        if (project.getStatuses().isEmpty()) {
+            source.sendMessage(Text.literal("No statuses found.").formatted(Formatting.GRAY));
+        } else {
+            for (var status : project.getStatuses()) {
+                MutableText text = TuiHelper.createRunLink("[" + status.name() + "] ", "/mossman project status view " + prefix + " " + status.name(), "View status details", Formatting.GREEN)
+                        .append(Text.literal(status.name()).formatted(Formatting.WHITE));
+                if (status.textColor() != null && !status.textColor().isEmpty()) text.append(Text.literal(" (Color: " + status.textColor() + ")").formatted(Formatting.GRAY));
+                source.sendMessage(text);
+            }
+        }
+
+        if (PermissionChecker.hasPermission(project, source, Permission.EDITOR)) {
+            source.sendMessage(TuiHelper.createSuggestLink("[Add Status] ", "/mossman project status add " + prefix + " ", "Click to add a new status", Formatting.GOLD));
+        }
+        return 1;
+    }
+
+    private static int viewStatus(CommandContext<ServerCommandSource> context) {
+        ServerCommandSource source = context.getSource();
+        String prefix = StringArgumentType.getString(context, "prefix");
+        String name = StringArgumentType.getString(context, "name");
+        var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream().filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
+        if (project == null || !PermissionChecker.canView(project, source)) return 0;
+        var status = project.getStatuses().stream().filter(s -> s.name().equalsIgnoreCase(name)).findFirst().orElse(null);
+        if (status == null) { source.sendMessage(Text.literal("Status not found: " + name).formatted(Formatting.RED)); return 0; }
+
+        source.sendMessage(Text.literal("--- Status: " + status.name() + " ---").formatted(Formatting.AQUA));
+        boolean isEditor = PermissionChecker.hasPermission(project, source, Permission.EDITOR);
+
+        MutableText nameLine = Text.empty();
+        if (isEditor) nameLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project status update " + prefix + " " + status.name() + " {name:\"" + status.name() + "\"}", "Click to edit Name", Formatting.GRAY));
+        source.sendMessage(nameLine.append(Text.literal("Name: " + status.name()).formatted(Formatting.WHITE)));
+
+        MutableText colorLine = Text.empty();
+        if (isEditor) colorLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project status update " + prefix + " " + status.name() + " {textColor:\"" + (status.textColor() != null ? status.textColor() : "") + "\"}", "Click to edit Text Color", Formatting.GRAY));
+        source.sendMessage(colorLine.append(Text.literal("Text Color: " + (status.textColor() != null ? status.textColor() : "None")).formatted(Formatting.WHITE)));
+
+        return 1;
+    }
+
+    private static int updateStatus(CommandContext<ServerCommandSource> context) {
+        ServerCommandSource source = context.getSource();
+        String prefix = StringArgumentType.getString(context, "prefix");
+        String name = StringArgumentType.getString(context, "name");
+        var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream().filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
+        if (project == null || !PermissionChecker.hasPermission(project, source, Permission.EDITOR)) return 0;
+
+        var patch = NbtPatchParser.toMap(NbtCompoundArgumentType.getNbtCompound(context, "patch"));
+        var target = project.getStatuses().stream().filter(s -> s.name().equalsIgnoreCase(name)).findFirst().orElse(null);
+        if (target == null) return 0;
+
+        java.util.List<com.mossman.domain.entities.Status> newStatuses = new java.util.ArrayList<>(project.getStatuses());
+        newStatuses.remove(target);
+        newStatuses.add(new com.mossman.domain.entities.Status(
+            patch.getOrDefault("name", target.name()),
+            patch.getOrDefault("textColor", target.textColor())
+        ));
+        
+        try {
+            UUID rId = source.getPlayer() != null ? source.getPlayer().getUuid() : UUID.randomUUID();
+            MossManMod.getUpdateProjectStatusesUseCase().execute(project.getId(), rId, newStatuses);
+            source.sendMessage(Text.literal("Updated status").formatted(Formatting.GREEN));
+        } catch (IllegalArgumentException e) {
+            source.sendMessage(Text.literal(e.getMessage()).formatted(Formatting.RED));
+        }
+        return 1;
+    }
+
+    private static int addStatus(CommandContext<ServerCommandSource> context) {
+        ServerCommandSource source = context.getSource();
+        String prefix = StringArgumentType.getString(context, "prefix");
+        String name = StringArgumentType.getString(context, "name");
+        var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream().filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
+        if (project == null || !PermissionChecker.hasPermission(project, source, Permission.EDITOR)) return 0;
+        
+        if (project.getStatuses().stream().anyMatch(s -> s.name().equalsIgnoreCase(name))) {
+            source.sendMessage(Text.literal("Status already exists.").formatted(Formatting.RED));
+            return 0;
+        }
+
+        java.util.List<com.mossman.domain.entities.Status> newStatuses = new java.util.ArrayList<>(project.getStatuses());
+        newStatuses.add(new com.mossman.domain.entities.Status(name, ""));
+        
+        try {
+            UUID rId = source.getPlayer() != null ? source.getPlayer().getUuid() : UUID.randomUUID();
+            MossManMod.getUpdateProjectStatusesUseCase().execute(project.getId(), rId, newStatuses);
+            source.sendMessage(Text.literal("Added status " + name).formatted(Formatting.GREEN));
+        } catch (IllegalArgumentException e) {
+            source.sendMessage(Text.literal(e.getMessage()).formatted(Formatting.RED));
+        }
+        return 1;
+    }
+
+    private static int listTicketTypes(CommandContext<ServerCommandSource> context) {
+        ServerCommandSource source = context.getSource();
+        String prefix = StringArgumentType.getString(context, "prefix");
+        var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream().filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
+        if (project == null || !PermissionChecker.canView(project, source)) return 0;
+
+        source.sendMessage(Text.literal("--- Ticket Types of " + project.getName() + " ---").formatted(Formatting.AQUA));
+        if (project.getTicketTypes().isEmpty()) {
+            source.sendMessage(Text.literal("No ticket types found.").formatted(Formatting.GRAY));
+        } else {
+            for (var tt : project.getTicketTypes()) {
+                MutableText text = TuiHelper.createRunLink("[" + tt.name() + "] ", "/mossman project ticketType view " + prefix + " " + tt.name(), "View ticket type details", Formatting.GREEN)
+                        .append(Text.literal(tt.name()).formatted(Formatting.WHITE));
+                if (tt.textColor() != null && !tt.textColor().isEmpty()) text.append(Text.literal(" (Color: " + tt.textColor() + ")").formatted(Formatting.GRAY));
+                source.sendMessage(text);
+            }
+        }
+
+        if (PermissionChecker.hasPermission(project, source, Permission.EDITOR)) {
+            source.sendMessage(TuiHelper.createSuggestLink("[Add Ticket Type] ", "/mossman project ticketType add " + prefix + " ", "Click to add a new ticket type", Formatting.GOLD));
+        }
+        return 1;
+    }
+
+    private static int viewTicketType(CommandContext<ServerCommandSource> context) {
+        ServerCommandSource source = context.getSource();
+        String prefix = StringArgumentType.getString(context, "prefix");
+        String name = StringArgumentType.getString(context, "name");
+        var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream().filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
+        if (project == null || !PermissionChecker.canView(project, source)) return 0;
+        var tt = project.getTicketTypes().stream().filter(t -> t.name().equalsIgnoreCase(name)).findFirst().orElse(null);
+        if (tt == null) return 0;
+
+        source.sendMessage(Text.literal("--- Ticket Type: " + tt.name() + " ---").formatted(Formatting.AQUA));
+        boolean isEditor = PermissionChecker.hasPermission(project, source, Permission.EDITOR);
+
+        MutableText nameLine = Text.empty();
+        if (isEditor) nameLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project ticketType update " + prefix + " " + tt.name() + " {name:\"" + tt.name() + "\"}", "Click to edit Name", Formatting.GRAY));
+        source.sendMessage(nameLine.append(Text.literal("Name: " + tt.name()).formatted(Formatting.WHITE)));
+
+        MutableText colorLine = Text.empty();
+        if (isEditor) colorLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project ticketType update " + prefix + " " + tt.name() + " {textColor:\"" + (tt.textColor() != null ? tt.textColor() : "") + "\"}", "Click to edit Text Color", Formatting.GRAY));
+        source.sendMessage(colorLine.append(Text.literal("Text Color: " + (tt.textColor() != null ? tt.textColor() : "None")).formatted(Formatting.WHITE)));
+        return 1;
+    }
+
+    private static int updateTicketType(CommandContext<ServerCommandSource> context) {
+        ServerCommandSource source = context.getSource();
+        String prefix = StringArgumentType.getString(context, "prefix");
+        String name = StringArgumentType.getString(context, "name");
+        var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream().filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
+        if (project == null || !PermissionChecker.hasPermission(project, source, Permission.EDITOR)) return 0;
+
+        var patch = NbtPatchParser.toMap(NbtCompoundArgumentType.getNbtCompound(context, "patch"));
+        var target = project.getTicketTypes().stream().filter(t -> t.name().equalsIgnoreCase(name)).findFirst().orElse(null);
+        if (target == null) return 0;
+        
+        java.util.List<com.mossman.domain.entities.TicketType> newLists = new java.util.ArrayList<>(project.getTicketTypes());
+        newLists.remove(target);
+        newLists.add(new com.mossman.domain.entities.TicketType(patch.getOrDefault("name", target.name()), patch.getOrDefault("textColor", target.textColor())));
+        
+        try {
+            UUID rId = source.getPlayer() != null ? source.getPlayer().getUuid() : UUID.randomUUID();
+            MossManMod.getUpdateProjectTicketTypesUseCase().execute(project.getId(), rId, newLists);
+            source.sendMessage(Text.literal("Updated ticket type").formatted(Formatting.GREEN));
+        } catch (IllegalArgumentException e) {
+            source.sendMessage(Text.literal(e.getMessage()).formatted(Formatting.RED));
+        }
+        return 1;
+    }
+
+    private static int addTicketType(CommandContext<ServerCommandSource> context) {
+        ServerCommandSource source = context.getSource();
+        String prefix = StringArgumentType.getString(context, "prefix");
+        String name = StringArgumentType.getString(context, "name");
+        var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream().filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
+        if (project == null || !PermissionChecker.hasPermission(project, source, Permission.EDITOR)) return 0;
+        
+        if (project.getTicketTypes().stream().anyMatch(t -> t.name().equalsIgnoreCase(name))) {
+            source.sendMessage(Text.literal("Ticket type already exists.").formatted(Formatting.RED));
+            return 0;
+        }
+
+        java.util.List<com.mossman.domain.entities.TicketType> newLists = new java.util.ArrayList<>(project.getTicketTypes());
+        newLists.add(new com.mossman.domain.entities.TicketType(name, ""));
+        
+        try {
+            UUID rId = source.getPlayer() != null ? source.getPlayer().getUuid() : UUID.randomUUID();
+            MossManMod.getUpdateProjectTicketTypesUseCase().execute(project.getId(), rId, newLists);
+            source.sendMessage(Text.literal("Added ticket type " + name).formatted(Formatting.GREEN));
+        } catch (IllegalArgumentException e) {
+            source.sendMessage(Text.literal(e.getMessage()).formatted(Formatting.RED));
+        }
+        return 1;
+    }
+
+    private static int listRelationshipTypes(CommandContext<ServerCommandSource> context) {
+        ServerCommandSource source = context.getSource();
+        String prefix = StringArgumentType.getString(context, "prefix");
+        var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream().filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
+        if (project == null || !PermissionChecker.canView(project, source)) return 0;
+
+        source.sendMessage(Text.literal("--- Relationship Types of " + project.getName() + " ---").formatted(Formatting.AQUA));
+        if (project.getRelationshipTypes().isEmpty()) {
+            source.sendMessage(Text.literal("No relationship types found.").formatted(Formatting.GRAY));
+        } else {
+            for (var rt : project.getRelationshipTypes()) {
+                MutableText text = TuiHelper.createRunLink("[" + rt.name() + "] ", "/mossman project relationshipType view " + prefix + " " + rt.name(), "View relationship type details", Formatting.GREEN)
+                        .append(Text.literal(rt.name()).formatted(Formatting.WHITE));
+                if (rt.textColor() != null && !rt.textColor().isEmpty()) text.append(Text.literal(" (Color: " + rt.textColor() + ")").formatted(Formatting.GRAY));
+                source.sendMessage(text);
+            }
+        }
+
+        if (PermissionChecker.hasPermission(project, source, Permission.EDITOR)) {
+            source.sendMessage(TuiHelper.createSuggestLink("[Add Relationship Type] ", "/mossman project relationshipType add " + prefix + " ", "Click to add a new relationship type", Formatting.GOLD));
+        }
+        return 1;
+    }
+
+    private static int viewRelationshipType(CommandContext<ServerCommandSource> context) {
+        ServerCommandSource source = context.getSource();
+        String prefix = StringArgumentType.getString(context, "prefix");
+        String name = StringArgumentType.getString(context, "name");
+        var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream().filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
+        if (project == null || !PermissionChecker.canView(project, source)) return 0;
+        var rt = project.getRelationshipTypes().stream().filter(t -> t.name().equalsIgnoreCase(name)).findFirst().orElse(null);
+        if (rt == null) return 0;
+
+        source.sendMessage(Text.literal("--- Relationship Type: " + rt.name() + " ---").formatted(Formatting.AQUA));
+        boolean isEditor = PermissionChecker.hasPermission(project, source, Permission.EDITOR);
+
+        MutableText nameLine = Text.empty();
+        if (isEditor) nameLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project relationshipType update " + prefix + " " + rt.name() + " {name:\"" + rt.name() + "\"}", "Click to edit Name", Formatting.GRAY));
+        source.sendMessage(nameLine.append(Text.literal("Name: " + rt.name()).formatted(Formatting.WHITE)));
+
+        MutableText sourceToTargetLine = Text.empty();
+        if (isEditor) sourceToTargetLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project relationshipType update " + prefix + " " + rt.name() + " {sourceToTargetDescription:\"" + (rt.sourceToTargetDescription() != null ? rt.sourceToTargetDescription() : "") + "\"}", "Click to edit Source -> Target", Formatting.GRAY));
+        source.sendMessage(sourceToTargetLine.append(Text.literal("Source->Target: " + (rt.sourceToTargetDescription() != null ? rt.sourceToTargetDescription() : "None")).formatted(Formatting.WHITE)));
+
+        MutableText targetToSourceLine = Text.empty();
+        if (isEditor) targetToSourceLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project relationshipType update " + prefix + " " + rt.name() + " {targetToSourceDescription:\"" + (rt.targetToSourceDescription() != null ? rt.targetToSourceDescription() : "") + "\"}", "Click to edit Target -> Source", Formatting.GRAY));
+        source.sendMessage(targetToSourceLine.append(Text.literal("Target->Source: " + (rt.targetToSourceDescription() != null ? rt.targetToSourceDescription() : "None")).formatted(Formatting.WHITE)));
+
+        MutableText colorLine = Text.empty();
+        if (isEditor) colorLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project relationshipType update " + prefix + " " + rt.name() + " {textColor:\"" + (rt.textColor() != null ? rt.textColor() : "") + "\"}", "Click to edit Text Color", Formatting.GRAY));
+        source.sendMessage(colorLine.append(Text.literal("Text Color: " + (rt.textColor() != null ? rt.textColor() : "None")).formatted(Formatting.WHITE)));
+        return 1;
+    }
+
+    private static int updateRelationshipType(CommandContext<ServerCommandSource> context) {
+        ServerCommandSource source = context.getSource();
+        String prefix = StringArgumentType.getString(context, "prefix");
+        String name = StringArgumentType.getString(context, "name");
+        var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream().filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
+        if (project == null || !PermissionChecker.hasPermission(project, source, Permission.EDITOR)) return 0;
+
+        var patch = NbtPatchParser.toMap(NbtCompoundArgumentType.getNbtCompound(context, "patch"));
+        var target = project.getRelationshipTypes().stream().filter(t -> t.name().equalsIgnoreCase(name)).findFirst().orElse(null);
+        if (target == null) return 0;
+        
+        java.util.List<com.mossman.domain.entities.RelationshipType> newLists = new java.util.ArrayList<>(project.getRelationshipTypes());
+        newLists.remove(target);
+        newLists.add(new com.mossman.domain.entities.RelationshipType(
+            patch.getOrDefault("name", target.name()),
+            patch.getOrDefault("sourceToTargetDescription", target.sourceToTargetDescription()),
+            patch.getOrDefault("targetToSourceDescription", target.targetToSourceDescription()),
+            patch.getOrDefault("textColor", target.textColor())
+        ));
+        
+        try {
+            UUID rId = source.getPlayer() != null ? source.getPlayer().getUuid() : UUID.randomUUID();
+            MossManMod.getUpdateProjectRelationshipTypesUseCase().execute(project.getId(), rId, newLists);
+            source.sendMessage(Text.literal("Updated relationship type").formatted(Formatting.GREEN));
+        } catch (IllegalArgumentException e) {
+            source.sendMessage(Text.literal(e.getMessage()).formatted(Formatting.RED));
+        }
+        return 1;
+    }
+
+    private static int addRelationshipType(CommandContext<ServerCommandSource> context) {
+        ServerCommandSource source = context.getSource();
+        String prefix = StringArgumentType.getString(context, "prefix");
+        String name = StringArgumentType.getString(context, "name");
+        var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream().filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
+        if (project == null || !PermissionChecker.hasPermission(project, source, Permission.EDITOR)) return 0;
+        
+        if (project.getRelationshipTypes().stream().anyMatch(t -> t.name().equalsIgnoreCase(name))) {
+            source.sendMessage(Text.literal("Relationship type already exists.").formatted(Formatting.RED));
+            return 0;
+        }
+
+        java.util.List<com.mossman.domain.entities.RelationshipType> newLists = new java.util.ArrayList<>(project.getRelationshipTypes());
+        newLists.add(new com.mossman.domain.entities.RelationshipType(name, "", "", ""));
+        
+        try {
+            UUID rId = source.getPlayer() != null ? source.getPlayer().getUuid() : UUID.randomUUID();
+            MossManMod.getUpdateProjectRelationshipTypesUseCase().execute(project.getId(), rId, newLists);
+            source.sendMessage(Text.literal("Added relationship type " + name).formatted(Formatting.GREEN));
+        } catch (IllegalArgumentException e) {
+            source.sendMessage(Text.literal(e.getMessage()).formatted(Formatting.RED));
+        }
+        return 1;
+    }
+
+    private static com.mossman.domain.entities.Project.Builder cloneProjectWithLists(com.mossman.domain.entities.Project project) {
+        return com.mossman.domain.entities.Project.builder()
+                .id(project.getId())
+                .ticketPrefix(project.getTicketPrefix())
+                .name(project.getName())
+                .description(project.getDescription())
+                .iconTexture(project.getIconTexture())
+                .externalUserPermission(project.getExternalUserPermission())
+                .textColor(project.getTextColor())
+                .statuses(project.getStatuses())
+                .ticketTypes(project.getTicketTypes())
+                .relationshipTypes(project.getRelationshipTypes())
+                .members(project.getMembers());
     }
 
     private static int removeMember(CommandContext<ServerCommandSource> context) {

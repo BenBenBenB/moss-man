@@ -6,6 +6,13 @@ import com.mossman.domain.entities.Permission;
 import com.mossman.domain.entities.Project;
 
 import java.util.UUID;
+import java.util.List;
+import java.util.Collections;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import com.mossman.domain.entities.Status;
+import com.mossman.domain.entities.TicketType;
+import com.mossman.domain.entities.RelationshipType;
 
 @DatabaseTable(tableName = "projects")
 public class ProjectDb {
@@ -30,6 +37,17 @@ public class ProjectDb {
     @DatabaseField
     private String textColor;
 
+    @DatabaseField(columnDefinition = "TEXT")
+    private String statusesJson;
+
+    @DatabaseField(columnDefinition = "TEXT")
+    private String ticketTypesJson;
+
+    @DatabaseField(columnDefinition = "TEXT")
+    private String relationshipTypesJson;
+
+    private static final Gson GSON = new Gson();
+
     // OrmLite requires a no-arg constructor
     public ProjectDb() {}
 
@@ -42,13 +60,20 @@ public class ProjectDb {
         this.iconTexture = project.getIconTexture();
         this.externalUserPermission = project.getExternalUserPermission();
         this.textColor = project.getTextColor();
+        this.statusesJson = GSON.toJson(project.getStatuses());
+        this.ticketTypesJson = GSON.toJson(project.getTicketTypes());
+        this.relationshipTypesJson = GSON.toJson(project.getRelationshipTypes());
     }
 
     public Project toDomain() {
         return toDomain(java.util.Collections.emptyList());
     }
 
-    public Project toDomain(java.util.List<com.mossman.domain.entities.Member> members) {
+    public Project toDomain(List<com.mossman.domain.entities.Member> members) {
+        List<Status> statuses = statusesJson != null ? GSON.fromJson(statusesJson, new TypeToken<List<Status>>(){}.getType()) : Collections.emptyList();
+        List<TicketType> ticketTypes = ticketTypesJson != null ? GSON.fromJson(ticketTypesJson, new TypeToken<List<TicketType>>(){}.getType()) : Collections.emptyList();
+        List<RelationshipType> relationshipTypes = relationshipTypesJson != null ? GSON.fromJson(relationshipTypesJson, new TypeToken<List<RelationshipType>>(){}.getType()) : Collections.emptyList();
+
         return Project.builder()
                 .id(id)
                 .ticketPrefix(ticketPrefix)
@@ -57,6 +82,9 @@ public class ProjectDb {
                 .iconTexture(iconTexture)
                 .externalUserPermission(externalUserPermission)
                 .textColor(textColor)
+                .statuses(statuses)
+                .ticketTypes(ticketTypes)
+                .relationshipTypes(relationshipTypes)
                 .members(members)
                 .build();
     }

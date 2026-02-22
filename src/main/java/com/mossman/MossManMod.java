@@ -33,6 +33,9 @@ public class MossManMod implements ModInitializer {
     private static UpdateMemberUseCase updateMemberUseCase;
     private static RemoveMemberUseCase removeMemberUseCase;
     private static TransferOwnershipUseCase transferOwnershipUseCase;
+    private static UpdateProjectStatusesUseCase updateProjectStatusesUseCase;
+    private static UpdateProjectTicketTypesUseCase updateProjectTicketTypesUseCase;
+    private static UpdateProjectRelationshipTypesUseCase updateProjectRelationshipTypesUseCase;
 
     private static OrmLiteProjectRepository projectRepository;
     private static OrmLiteTicketRepository ticketRepository;
@@ -62,6 +65,9 @@ public class MossManMod implements ModInitializer {
             updateMemberUseCase = new UpdateMemberUseCase(projectRepository);
             removeMemberUseCase = new RemoveMemberUseCase(projectRepository);
             transferOwnershipUseCase = new TransferOwnershipUseCase(projectRepository);
+            updateProjectStatusesUseCase = new UpdateProjectStatusesUseCase(projectRepository);
+            updateProjectTicketTypesUseCase = new UpdateProjectTicketTypesUseCase(projectRepository);
+            updateProjectRelationshipTypesUseCase = new UpdateProjectRelationshipTypesUseCase(projectRepository);
 
             LOGGER.info("Database and Use Cases initialized successfully.");
         } catch (SQLException e) {
@@ -86,6 +92,9 @@ public class MossManMod implements ModInitializer {
     public static UpdateMemberUseCase getUpdateMemberUseCase() { return updateMemberUseCase; }
     public static RemoveMemberUseCase getRemoveMemberUseCase() { return removeMemberUseCase; }
     public static TransferOwnershipUseCase getTransferOwnershipUseCase() { return transferOwnershipUseCase; }
+    public static UpdateProjectStatusesUseCase getUpdateProjectStatusesUseCase() { return updateProjectStatusesUseCase; }
+    public static UpdateProjectTicketTypesUseCase getUpdateProjectTicketTypesUseCase() { return updateProjectTicketTypesUseCase; }
+    public static UpdateProjectRelationshipTypesUseCase getUpdateProjectRelationshipTypesUseCase() { return updateProjectRelationshipTypesUseCase; }
     public static OrmLiteProjectRepository getProjectRepository() { return projectRepository; }
     public static OrmLiteMemberRepository getMemberRepository() { return memberRepository; }
     public static OrmLiteTicketRepository getTicketRepository() { return ticketRepository; }

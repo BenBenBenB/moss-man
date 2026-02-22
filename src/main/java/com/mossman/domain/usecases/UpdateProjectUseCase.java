@@ -12,7 +12,7 @@ import java.util.Map;
  * Only fields present in the patch map are changed; all others are left as-is.
  * The caller (command layer) is responsible for parsing SNBT into the map.
  *
- * Patchable fields: name, description, iconTexture, textColor, externalUserPermission
+ * Patchable fields: ticketPrefix, name, description, iconTexture, textColor, externalUserPermission
  */
 public class UpdateProjectUseCase {
     private final ProjectRepository projectRepository;
@@ -45,9 +45,11 @@ public class UpdateProjectUseCase {
                 ? Permission.valueOf(patch.get("externalUserPermission").toUpperCase())
                 : current.getExternalUserPermission();
 
+        String ticketPrefix           = patch.getOrDefault("ticketPrefix", current.getTicketPrefix());
+
         Project updated = Project.builder()
                 .id(current.getId())
-                .ticketPrefix(current.getTicketPrefix())
+                .ticketPrefix(ticketPrefix)
                 .name(name)
                 .description(description)
                 .iconTexture(iconTexture)

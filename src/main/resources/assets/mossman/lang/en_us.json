@@ -2,6 +2,7 @@
   "mossman.tui.common.pagination.next": "[Next >>]",
   "mossman.tui.common.pagination.page_info": "Page %d of %d",
   "mossman.tui.common.pagination.prev": "[<< Prev]",
+  "mossman.tui.common.view_btn": "[View]",
   "mossman.tui.project.create_btn": "[Create New Project]",
   "mossman.tui.project.create_hover": "Click to create a new project",
   "mossman.tui.project.created": "Created Project: %s ",
