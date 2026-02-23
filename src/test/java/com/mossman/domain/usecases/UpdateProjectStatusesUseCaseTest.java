@@ -96,7 +96,35 @@ class UpdateProjectStatusesUseCaseTest {
         assertThrows(IllegalArgumentException.class, () -> {
             useCase.execute(1L, editorId, duplicateStatuses);
         });
-        
+
+        verify(projectRepository, never()).save(any());
+    }
+
+    @Test
+    void testExecute_ThrowsIfStatusNameBlank() {
+        UUID editorId = UUID.randomUUID();
+        Project project = Project.builder()
+                .id(1L)
+                .members(List.of(new Member(0, editorId, "Editor", "Editor", Permission.EDITOR)))
+                .build();
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                useCase.execute(1L, editorId, List.of(new Status("", "blue"))));
+        verify(projectRepository, never()).save(any());
+    }
+
+    @Test
+    void testExecute_ThrowsIfStatusNameContainsSectionSign() {
+        UUID editorId = UUID.randomUUID();
+        Project project = Project.builder()
+                .id(1L)
+                .members(List.of(new Member(0, editorId, "Editor", "Editor", Permission.EDITOR)))
+                .build();
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                useCase.execute(1L, editorId, List.of(new Status("§OPEN", ""))));
         verify(projectRepository, never()).save(any());
     }
 }

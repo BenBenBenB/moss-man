@@ -115,4 +115,69 @@ class UpdateProjectUseCaseTest {
             useCase.execute(1L, editorId, Map.of("name", "New Name"));
         });
     }
+
+    @Test
+    void testExecute_ThrowsIfNameBlank() {
+        UUID adminId = UUID.randomUUID();
+        Project project = Project.builder()
+                .id(1L)
+                .members(List.of(new Member(0, adminId, "Admin", "Admin", Permission.ADMIN)))
+                .name("Existing")
+                .ticketPrefix("EX")
+                .build();
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                useCase.execute(1L, adminId, Map.of("name", "")));
+        verify(projectRepository, never()).save(any());
+    }
+
+    @Test
+    void testExecute_ThrowsIfTicketPrefixTooLong() {
+        UUID adminId = UUID.randomUUID();
+        Project project = Project.builder()
+                .id(1L)
+                .members(List.of(new Member(0, adminId, "Admin", "Admin", Permission.ADMIN)))
+                .name("Existing")
+                .ticketPrefix("EX")
+                .build();
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                useCase.execute(1L, adminId, Map.of("ticketPrefix", "TOOLONGPREFIX")));
+        verify(projectRepository, never()).save(any());
+    }
+
+    @Test
+    void testExecute_ThrowsIfNameContainsSectionSign() {
+        UUID adminId = UUID.randomUUID();
+        Project project = Project.builder()
+                .id(1L)
+                .members(List.of(new Member(0, adminId, "Admin", "Admin", Permission.ADMIN)))
+                .name("Existing")
+                .ticketPrefix("EX")
+                .build();
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                useCase.execute(1L, adminId, Map.of("name", "§bad name")));
+        verify(projectRepository, never()).save(any());
+    }
+
+    @Test
+    void testExecute_TicketPrefixNormalizedToUppercase() {
+        UUID adminId = UUID.randomUUID();
+        Project project = Project.builder()
+                .id(1L)
+                .members(List.of(new Member(0, adminId, "Admin", "Admin", Permission.ADMIN)))
+                .name("Existing")
+                .ticketPrefix("EX")
+                .build();
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+        when(projectRepository.save(any(Project.class))).thenAnswer(i -> i.getArguments()[0]);
+
+        Project result = useCase.execute(1L, adminId, Map.of("ticketPrefix", "abc"));
+
+        assertEquals("ABC", result.getTicketPrefix());
+    }
 }

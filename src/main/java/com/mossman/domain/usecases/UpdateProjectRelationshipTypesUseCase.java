@@ -2,6 +2,7 @@ package com.mossman.domain.usecases;
 
 import com.mossman.domain.entities.Project;
 import com.mossman.domain.repositories.ProjectRepository;
+import com.mossman.domain.validation.EntityValidator;
 import com.mossman.domain.validation.TextColorValidator;
 
 public class UpdateProjectRelationshipTypesUseCase {
@@ -20,7 +21,12 @@ public class UpdateProjectRelationshipTypesUseCase {
         if (distinctNames < newRelTypes.size()) {
             throw new IllegalArgumentException("Relationship type name must be unique for each project.");
         }
-        newRelTypes.forEach(r -> TextColorValidator.requireValid("textColor", r.textColor()));
+        newRelTypes.forEach(r -> {
+            EntityValidator.requireValidShortName("relationship type name", r.name());
+            EntityValidator.requireValidRelTypeDescription("sourceToTargetDescription", r.sourceToTargetDescription());
+            EntityValidator.requireValidRelTypeDescription("targetToSourceDescription", r.targetToSourceDescription());
+            TextColorValidator.requireValid("textColor", r.textColor());
+        });
 
         Project updated = Project.builder()
                 .id(current.getId())

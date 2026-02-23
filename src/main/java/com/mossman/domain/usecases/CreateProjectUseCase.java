@@ -9,6 +9,7 @@ import com.mossman.domain.entities.TicketType;
 import com.mossman.domain.events.DomainEventBus;
 import com.mossman.domain.events.ProjectCreatedEvent;
 import com.mossman.domain.repositories.ProjectRepository;
+import com.mossman.domain.validation.EntityValidator;
 
 import java.time.Instant;
 import java.util.List;
@@ -52,6 +53,11 @@ public class CreateProjectUseCase {
                 .ticketTypes(DEFAULT_TICKET_TYPES)
                 .relationshipTypes(DEFAULT_RELATIONSHIP_TYPES)
                 .build();
+
+        EntityValidator.requireValidTicketPrefix(project.getTicketPrefix());
+        EntityValidator.requireValidProjectName(project.getName());
+        EntityValidator.requireValidProjectDescription(project.getDescription());
+        EntityValidator.requireValidIconTexture(project.getIconTexture());
 
         Project savedProject = projectRepository.save(project);
         eventBus.publish(new ProjectCreatedEvent(savedProject, Instant.now()));

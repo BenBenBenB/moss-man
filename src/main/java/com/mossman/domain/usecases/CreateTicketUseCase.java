@@ -6,6 +6,7 @@ import com.mossman.domain.events.TicketCreatedEvent;
 import com.mossman.domain.repositories.ProjectRepository;
 import com.mossman.domain.repositories.TicketRepository;
 import com.mossman.domain.entities.Permission;
+import com.mossman.domain.validation.EntityValidator;
 import java.time.Instant;
 
 public class CreateTicketUseCase {
@@ -27,6 +28,9 @@ public class CreateTicketUseCase {
         if (perm == Permission.FORBID || perm == Permission.VIEWER) {
             throw new SecurityException("Insufficient permission: CREATOR required");
         }
+
+        EntityValidator.requireValidTicketTitle(ticket.getTitle());
+        EntityValidator.requireValidTicketDescription(ticket.getDescription());
 
         Ticket savedTicket = ticketRepository.save(ticket);
         eventBus.publish(new TicketCreatedEvent(savedTicket, Instant.now()));

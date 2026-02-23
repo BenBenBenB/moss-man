@@ -101,4 +101,43 @@ class CreateTicketUseCaseTest {
                 useCase.execute(buildTicket(), outsiderId));
         verify(ticketRepository, never()).save(any());
     }
+
+    @Test
+    void testExecute_ThrowsIfTitleBlank() {
+        Ticket ticket = new Ticket(0, 1L, 1, "", "desc",
+                "BUG", "OPEN", Priority.MEDIUM,
+                Collections.emptyList(), Collections.emptyList(),
+                creatorId, Collections.emptyList(),
+                System.currentTimeMillis(), System.currentTimeMillis(), null);
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+
+        assertThrows(IllegalArgumentException.class, () -> useCase.execute(ticket, creatorId));
+        verify(ticketRepository, never()).save(any());
+    }
+
+    @Test
+    void testExecute_ThrowsIfTitleTooLong() {
+        Ticket ticket = new Ticket(0, 1L, 1, "A".repeat(129), "desc",
+                "BUG", "OPEN", Priority.MEDIUM,
+                Collections.emptyList(), Collections.emptyList(),
+                creatorId, Collections.emptyList(),
+                System.currentTimeMillis(), System.currentTimeMillis(), null);
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+
+        assertThrows(IllegalArgumentException.class, () -> useCase.execute(ticket, creatorId));
+        verify(ticketRepository, never()).save(any());
+    }
+
+    @Test
+    void testExecute_ThrowsIfTitleContainsSectionSign() {
+        Ticket ticket = new Ticket(0, 1L, 1, "§red title", "desc",
+                "BUG", "OPEN", Priority.MEDIUM,
+                Collections.emptyList(), Collections.emptyList(),
+                creatorId, Collections.emptyList(),
+                System.currentTimeMillis(), System.currentTimeMillis(), null);
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+
+        assertThrows(IllegalArgumentException.class, () -> useCase.execute(ticket, creatorId));
+        verify(ticketRepository, never()).save(any());
+    }
 }

@@ -96,7 +96,35 @@ class UpdateProjectRelationshipTypesUseCaseTest {
         assertThrows(IllegalArgumentException.class, () -> {
             useCase.execute(1L, editorId, duplicateTypes);
         });
-        
+
+        verify(projectRepository, never()).save(any());
+    }
+
+    @Test
+    void testExecute_ThrowsIfRelTypeNameBlank() {
+        UUID editorId = UUID.randomUUID();
+        Project project = Project.builder()
+                .id(1L)
+                .members(List.of(new Member(0, editorId, "Editor", "Editor", Permission.EDITOR)))
+                .build();
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                useCase.execute(1L, editorId, List.of(new RelationshipType("", "blocks", "is blocked by", ""))));
+        verify(projectRepository, never()).save(any());
+    }
+
+    @Test
+    void testExecute_ThrowsIfRelTypeDescriptionContainsSectionSign() {
+        UUID editorId = UUID.randomUUID();
+        Project project = Project.builder()
+                .id(1L)
+                .members(List.of(new Member(0, editorId, "Editor", "Editor", Permission.EDITOR)))
+                .build();
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                useCase.execute(1L, editorId, List.of(new RelationshipType("BLOCKS", "§blocks", "is blocked by", ""))));
         verify(projectRepository, never()).save(any());
     }
 }

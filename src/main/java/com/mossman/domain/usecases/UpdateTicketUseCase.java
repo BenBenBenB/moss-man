@@ -5,6 +5,7 @@ import com.mossman.domain.entities.Ticket;
 import com.mossman.domain.events.DomainEventBus;
 import com.mossman.domain.repositories.TicketRepository;
 import com.mossman.domain.repositories.ProjectRepository;
+import com.mossman.domain.validation.EntityValidator;
 
 import java.util.Map;
 
@@ -35,6 +36,9 @@ public class UpdateTicketUseCase {
                 .orElseThrow(() -> new IllegalArgumentException("Project not found: id=" + current.getProjectId()));
 
         com.mossman.domain.auth.PermissionChecker.requireProjectEditor(project, requesterId);
+
+        if (patch.containsKey("title"))       EntityValidator.requireValidTicketTitle(patch.get("title"));
+        if (patch.containsKey("description")) EntityValidator.requireValidTicketDescription(patch.get("description"));
 
         String title       = patch.getOrDefault("title",       current.getTitle());
         String description = patch.getOrDefault("description", current.getDescription() != null ? current.getDescription() : "");

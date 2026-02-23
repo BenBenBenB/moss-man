@@ -2,6 +2,7 @@ package com.mossman.domain.usecases;
 
 import com.mossman.domain.entities.Project;
 import com.mossman.domain.repositories.ProjectRepository;
+import com.mossman.domain.validation.EntityValidator;
 import com.mossman.domain.validation.TextColorValidator;
 
 public class UpdateProjectTicketTypesUseCase {
@@ -20,7 +21,10 @@ public class UpdateProjectTicketTypesUseCase {
         if (distinctNames < newTicketTypes.size()) {
             throw new IllegalArgumentException("Ticket type name must be unique for each project.");
         }
-        newTicketTypes.forEach(t -> TextColorValidator.requireValid("textColor", t.textColor()));
+        newTicketTypes.forEach(t -> {
+            EntityValidator.requireValidShortName("ticket type name", t.name());
+            TextColorValidator.requireValid("textColor", t.textColor());
+        });
 
         Project updated = Project.builder()
                 .id(current.getId())

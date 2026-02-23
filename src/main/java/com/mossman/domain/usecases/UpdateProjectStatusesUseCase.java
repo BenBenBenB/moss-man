@@ -2,6 +2,7 @@ package com.mossman.domain.usecases;
 
 import com.mossman.domain.entities.Project;
 import com.mossman.domain.repositories.ProjectRepository;
+import com.mossman.domain.validation.EntityValidator;
 import com.mossman.domain.validation.TextColorValidator;
 
 public class UpdateProjectStatusesUseCase {
@@ -20,7 +21,10 @@ public class UpdateProjectStatusesUseCase {
         if (distinctNames < newStatuses.size()) {
             throw new IllegalArgumentException("Status name must be unique for each project.");
         }
-        newStatuses.forEach(s -> TextColorValidator.requireValid("textColor", s.textColor()));
+        newStatuses.forEach(s -> {
+            EntityValidator.requireValidShortName("status name", s.name());
+            TextColorValidator.requireValid("textColor", s.textColor());
+        });
 
         Project updated = Project.builder()
                 .id(current.getId())

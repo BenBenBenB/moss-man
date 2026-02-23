@@ -135,4 +135,34 @@ class UpdateTicketUseCaseTest {
         assertThrows(IllegalArgumentException.class, () ->
                 useCase.execute(42L, editorId, Map.of("title", "X")));
     }
+
+    @Test
+    void testExecute_ThrowsIfTitleBlank() {
+        when(ticketRepository.findById(42L)).thenReturn(Optional.of(existingTicket));
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                useCase.execute(42L, editorId, Map.of("title", "")));
+        verify(ticketRepository, never()).save(any());
+    }
+
+    @Test
+    void testExecute_ThrowsIfTitleTooLong() {
+        when(ticketRepository.findById(42L)).thenReturn(Optional.of(existingTicket));
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                useCase.execute(42L, editorId, Map.of("title", "A".repeat(129))));
+        verify(ticketRepository, never()).save(any());
+    }
+
+    @Test
+    void testExecute_ThrowsIfTitleContainsSectionSign() {
+        when(ticketRepository.findById(42L)).thenReturn(Optional.of(existingTicket));
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                useCase.execute(42L, editorId, Map.of("title", "§bad title")));
+        verify(ticketRepository, never()).save(any());
+    }
 }

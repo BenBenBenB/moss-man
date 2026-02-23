@@ -5,6 +5,7 @@ import com.mossman.domain.entities.Permission;
 import com.mossman.domain.entities.Project;
 import com.mossman.domain.repositories.ProjectRepository;
 import com.mossman.domain.auth.PermissionChecker;
+import com.mossman.domain.validation.EntityValidator;
 
 import java.util.UUID;
 import java.util.ArrayList;
@@ -58,6 +59,8 @@ public class UpdateMemberUseCase {
                 }
             }
         }
+
+        EntityValidator.requireValidMemberTitle(title);
 
         Member updatedMember = new Member(current.id(), current.uuid(), username, title, perm);
 

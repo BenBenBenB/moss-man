@@ -96,7 +96,35 @@ class UpdateProjectTicketTypesUseCaseTest {
         assertThrows(IllegalArgumentException.class, () -> {
             useCase.execute(1L, editorId, duplicateTypes);
         });
-        
+
+        verify(projectRepository, never()).save(any());
+    }
+
+    @Test
+    void testExecute_ThrowsIfTicketTypeNameBlank() {
+        UUID editorId = UUID.randomUUID();
+        Project project = Project.builder()
+                .id(1L)
+                .members(List.of(new Member(0, editorId, "Editor", "Editor", Permission.EDITOR)))
+                .build();
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                useCase.execute(1L, editorId, List.of(new TicketType("", "blue"))));
+        verify(projectRepository, never()).save(any());
+    }
+
+    @Test
+    void testExecute_ThrowsIfTicketTypeNameContainsSectionSign() {
+        UUID editorId = UUID.randomUUID();
+        Project project = Project.builder()
+                .id(1L)
+                .members(List.of(new Member(0, editorId, "Editor", "Editor", Permission.EDITOR)))
+                .build();
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                useCase.execute(1L, editorId, List.of(new TicketType("§BUG", ""))));
         verify(projectRepository, never()).save(any());
     }
 }

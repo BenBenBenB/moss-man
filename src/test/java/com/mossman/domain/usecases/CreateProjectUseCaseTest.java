@@ -65,4 +65,28 @@ class CreateProjectUseCaseTest {
 
         verify(eventBus, times(1)).publish(any(ProjectCreatedEvent.class));
     }
+
+    @Test
+    void testExecute_ThrowsIfNameBlank() {
+        UUID creatorId = UUID.randomUUID();
+        assertThrows(IllegalArgumentException.class, () ->
+                useCase.execute(Project.builder().name("").ticketPrefix("PRJ"), creatorId, "bob"));
+        verify(projectRepository, never()).save(any());
+    }
+
+    @Test
+    void testExecute_ThrowsIfTicketPrefixInvalid() {
+        UUID creatorId = UUID.randomUUID();
+        assertThrows(IllegalArgumentException.class, () ->
+                useCase.execute(Project.builder().name("My Project").ticketPrefix("TOOLONGPREFIX"), creatorId, "bob"));
+        verify(projectRepository, never()).save(any());
+    }
+
+    @Test
+    void testExecute_ThrowsIfNameContainsSectionSign() {
+        UUID creatorId = UUID.randomUUID();
+        assertThrows(IllegalArgumentException.class, () ->
+                useCase.execute(Project.builder().name("§red name").ticketPrefix("MP"), creatorId, "bob"));
+        verify(projectRepository, never()).save(any());
+    }
 }

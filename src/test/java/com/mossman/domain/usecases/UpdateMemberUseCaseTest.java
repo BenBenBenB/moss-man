@@ -141,4 +141,24 @@ class UpdateMemberUseCaseTest {
         assertThrows(IllegalArgumentException.class, () ->
                 useCase.execute(1L, ownerId, editorId, Map.of()));
     }
+
+    @Test
+    void testExecute_ThrowsIfTitleTooLong() {
+        Project project = buildProject();
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                useCase.execute(1L, ownerId, editorId, Map.of("title", "A".repeat(65))));
+        verify(projectRepository, never()).save(any());
+    }
+
+    @Test
+    void testExecute_ThrowsIfTitleContainsSectionSign() {
+        Project project = buildProject();
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                useCase.execute(1L, ownerId, editorId, Map.of("title", "§Owner")));
+        verify(projectRepository, never()).save(any());
+    }
 }
