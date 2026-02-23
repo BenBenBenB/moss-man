@@ -246,6 +246,12 @@ public final class SuggestionHelper {
 
     // --- Static field maps for each entity type ---
 
+    private static final List<String> MC_COLORS = List.of(
+            "black", "dark_blue", "dark_green", "dark_aqua", "dark_red",
+            "dark_purple", "gold", "gray", "dark_gray", "blue",
+            "green", "aqua", "red", "light_purple", "yellow", "white"
+    );
+
     private static final Map<String, List<String>> PROJECT_FIELDS;
     private static final Map<String, List<String>> MEMBER_FIELDS;
     private static final Map<String, List<String>> STATUS_FIELDS;
@@ -260,7 +266,7 @@ public final class SuggestionHelper {
         m.put("description", null);
         m.put("ticketPrefix", null);
         m.put("iconTexture", null);
-        m.put("textColor", null);
+        m.put("textColor", MC_COLORS);
         m.put("externalUserPermission", List.of("FORBID", "VIEWER", "CREATOR", "EDITOR", "ADMIN"));
         PROJECT_FIELDS = Collections.unmodifiableMap(m);
 
@@ -271,14 +277,14 @@ public final class SuggestionHelper {
 
         m = new LinkedHashMap<>();
         m.put("name", null);
-        m.put("textColor", null);
+        m.put("textColor", MC_COLORS);
         STATUS_FIELDS = Collections.unmodifiableMap(m);
 
         TICKET_TYPE_FIELDS = STATUS_FIELDS; // identical schema
 
         m = new LinkedHashMap<>();
         m.put("name", null);
-        m.put("textColor", null);
+        m.put("textColor", MC_COLORS);
         m.put("sourceToTargetDescription", null);
         m.put("targetToSourceDescription", null);
         RELATIONSHIP_TYPE_FIELDS = Collections.unmodifiableMap(m);
