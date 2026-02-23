@@ -309,7 +309,7 @@ public class TicketCommand {
             
             return 1;
         } catch (Exception e) {
-            source.sendMessage(Text.literal("Failed to create ticket: " + e.getMessage()).formatted(Formatting.RED));
+            source.sendMessage(TuiHelper.errorText(e));
             return 0;
         }
     }
@@ -332,7 +332,7 @@ public class TicketCommand {
             source.sendMessage(Text.literal("Added comment to " + key + " (Comments not yet persisted)").formatted(Formatting.YELLOW));
             return 1;
         } catch (Exception e) {
-            source.sendMessage(Text.literal("Error: " + e.getMessage()).formatted(Formatting.RED));
+            source.sendMessage(TuiHelper.errorText(e));
             return 0;
         }
     }
@@ -356,7 +356,7 @@ public class TicketCommand {
             }
             return 1;
         } catch (Exception e) {
-            source.sendMessage(Text.literal("Failed to assign: " + e.getMessage()).formatted(Formatting.RED));
+            source.sendMessage(TuiHelper.errorText(e));
             return 0;
         }
     }
@@ -380,7 +380,7 @@ public class TicketCommand {
             }
             return 1;
         } catch (Exception e) {
-            source.sendMessage(Text.literal("Failed to unassign: " + e.getMessage()).formatted(Formatting.RED));
+            source.sendMessage(TuiHelper.errorText(e));
             return 0;
         }
     }
@@ -406,7 +406,7 @@ public class TicketCommand {
             source.sendMessage(Text.literal("Updated ticket " + key).formatted(Formatting.GREEN));
             return 1;
         } catch (Exception e) {
-            source.sendMessage(Text.literal("Failed to update ticket: " + e.getMessage()).formatted(Formatting.RED));
+            source.sendMessage(TuiHelper.errorText(e));
             return 0;
         }
     }

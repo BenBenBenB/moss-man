@@ -4,6 +4,7 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import com.mossman.MossManMod;
+import com.mossman.adapters.tui.TuiHelper;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.Text;
@@ -29,7 +30,7 @@ public class AdminCommand {
             source.sendMessage(Text.literal("Database wiped and reinitialized successfully.").formatted(Formatting.GREEN));
             return 1;
         } catch (Exception e) {
-            source.sendMessage(Text.literal("Failed to wipe database: " + e.getMessage()).formatted(Formatting.RED));
+            source.sendMessage(TuiHelper.errorText(e));
             return 0;
         }
     }

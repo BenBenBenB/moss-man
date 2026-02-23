@@ -337,7 +337,7 @@ public class ProjectCommand {
             source.sendMessage(response);
             return 1;
         } catch (Exception e) {
-            source.sendMessage(Text.literal("Failed to create project: " + e.getMessage()).formatted(Formatting.RED));
+            source.sendMessage(TuiHelper.errorText(e));
             return 0;
         }
     }
@@ -363,7 +363,7 @@ public class ProjectCommand {
             source.sendMessage(Text.literal("Deleted Project: " + prefix).formatted(Formatting.RED));
             return 1;
         } catch (Exception e) {
-            source.sendMessage(Text.literal("Failed to delete project: " + e.getMessage()).formatted(Formatting.RED));
+            source.sendMessage(TuiHelper.errorText(e));
             return 0;
         }
     }
@@ -387,7 +387,7 @@ public class ProjectCommand {
             source.sendMessage(Text.literal("Updated project [" + project.getTicketPrefix() + "]").formatted(Formatting.GREEN));
             return 1;
         } catch (Exception e) {
-            source.sendMessage(Text.literal("Failed to update project: " + e.getMessage()).formatted(Formatting.RED));
+            source.sendMessage(TuiHelper.errorText(e));
             return 0;
         }
     }
@@ -509,7 +509,7 @@ public class ProjectCommand {
             }
             return 1;
         } catch (Exception e) {
-            source.sendMessage(Text.literal("Error viewing member: " + e.getMessage()).formatted(Formatting.RED));
+            source.sendMessage(TuiHelper.errorText(e));
             return 0;
         }
     }
@@ -532,7 +532,7 @@ public class ProjectCommand {
             }
             return 1;
         } catch (Exception e) {
-            source.sendMessage(Text.literal("Error adding member: " + e.getMessage()).formatted(Formatting.RED));
+            source.sendMessage(TuiHelper.errorText(e));
             return 0;
         }
     }
@@ -554,7 +554,7 @@ public class ProjectCommand {
             }
             return 1;
         } catch (Exception e) {
-            source.sendMessage(Text.literal("Error updating member: " + e.getMessage()).formatted(Formatting.RED));
+            source.sendMessage(TuiHelper.errorText(e));
             return 0;
         }
     }
@@ -1008,7 +1008,7 @@ public class ProjectCommand {
             }
             return 1;
         } catch (Exception e) {
-            source.sendMessage(Text.literal("Error removing member: " + e.getMessage()).formatted(Formatting.RED));
+            source.sendMessage(TuiHelper.errorText(e));
             return 0;
         }
     }
@@ -1027,7 +1027,7 @@ public class ProjectCommand {
             source.sendMessage(Text.literal("Transferred ownership of " + project.getTicketPrefix() + " to " + entry.name()).formatted(Formatting.GOLD));
             return 1;
         } catch (Exception e) {
-            source.sendMessage(Text.literal("Error transferring ownership: " + e.getMessage()).formatted(Formatting.RED));
+            source.sendMessage(TuiHelper.errorText(e));
             return 0;
         }
     }

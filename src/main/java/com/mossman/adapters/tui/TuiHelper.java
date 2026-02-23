@@ -44,4 +44,19 @@ public class TuiHelper {
     public static MutableText translatable(String key, Object... args) {
         return Text.translatable(key, args);
     }
+
+    /**
+     * Returns a red error Text for display to the player.
+     * <p>
+     * {@link IllegalArgumentException} and {@link SecurityException} are considered user-facing
+     * validation/logic errors — their message is shown directly.
+     * All other exceptions are considered internal errors and a generic message is shown instead,
+     * to avoid leaking implementation details.
+     */
+    public static MutableText errorText(Exception e) {
+        if (e instanceof IllegalArgumentException || e instanceof SecurityException) {
+            return Text.literal(e.getMessage()).formatted(Formatting.RED);
+        }
+        return Text.literal("An unexpected error occurred.").formatted(Formatting.RED);
+    }
 }
