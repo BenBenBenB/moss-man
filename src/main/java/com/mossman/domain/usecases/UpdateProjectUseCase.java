@@ -4,6 +4,7 @@ import com.mossman.domain.entities.Permission;
 import com.mossman.domain.entities.Project;
 import com.mossman.domain.events.DomainEventBus;
 import com.mossman.domain.repositories.ProjectRepository;
+import com.mossman.domain.validation.TextColorValidator;
 
 import java.util.Map;
 
@@ -36,6 +37,8 @@ public class UpdateProjectUseCase {
                 .orElseThrow(() -> new IllegalArgumentException("Project not found: id=" + projectId));
 
         com.mossman.domain.auth.PermissionChecker.requireProjectAdmin(current, requesterId);
+
+        if (patch.containsKey("textColor")) TextColorValidator.requireValid("textColor", patch.get("textColor"));
 
         String name                   = patch.getOrDefault("name",        current.getName());
         String description            = patch.getOrDefault("description", current.getDescription() != null ? current.getDescription() : "");
