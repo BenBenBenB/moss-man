@@ -32,6 +32,11 @@ public class AddMemberUseCase {
             }
         }
 
+        boolean alreadyMember = project.getMembers().stream().anyMatch(m -> m.uuid().equals(newMember.uuid()));
+        if (alreadyMember) {
+            throw new IllegalArgumentException("Player is already a member of this project");
+        }
+
         // Add member logic
         List<Member> updatedMembers = new ArrayList<>(project.getMembers());
         updatedMembers.add(newMember);

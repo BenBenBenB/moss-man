@@ -5,8 +5,11 @@ import com.j256.ormlite.table.DatabaseTable;
 import com.mossman.domain.entities.Priority;
 import com.mossman.domain.entities.Ticket;
 
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @DatabaseTable(tableName = "tickets")
 public class TicketDb {
@@ -46,6 +49,10 @@ public class TicketDb {
     @DatabaseField
     private Long sprintId;
 
+    /** Comma-separated UUID strings; null or blank means no assignees. */
+    @DatabaseField
+    private String assignees;
+
     public TicketDb() {}
 
     public TicketDb(Ticket ticket) {
@@ -61,11 +68,19 @@ public class TicketDb {
         this.createdAt = ticket.getCreatedAt();
         this.updatedAt = ticket.getUpdatedAt();
         this.sprintId = ticket.getSprintId();
+        this.assignees = ticket.getAssignees().isEmpty() ? null :
+                ticket.getAssignees().stream().map(UUID::toString).collect(Collectors.joining(","));
     }
 
     public Ticket toDomain() {
-        return new Ticket(id, projectId, ticketNumber, title, description, type, status, priority, 
-                Collections.emptyList(), Collections.emptyList(), creator, Collections.emptyList(), 
+        List<UUID> parsedAssignees = (assignees == null || assignees.isBlank())
+                ? Collections.emptyList()
+                : Arrays.stream(assignees.split(","))
+                        .filter(s -> !s.isBlank())
+                        .map(UUID::fromString)
+                        .collect(Collectors.toList());
+        return new Ticket(id, projectId, ticketNumber, title, description, type, status, priority,
+                parsedAssignees, Collections.emptyList(), creator, Collections.emptyList(),
                 createdAt, updatedAt, sprintId);
     }
 
@@ -94,4 +109,6 @@ public class TicketDb {
     public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
     public Long getSprintId() { return sprintId; }
     public void setSprintId(Long sprintId) { this.sprintId = sprintId; }
+    public String getAssignees() { return assignees; }
+    public void setAssignees(String assignees) { this.assignees = assignees; }
 }

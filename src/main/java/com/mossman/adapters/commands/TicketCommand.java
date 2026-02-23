@@ -8,6 +8,7 @@ import com.mossman.adapters.tui.NbtPatchParser;
 import com.mossman.adapters.tui.SuggestionHelper;
 import com.mossman.adapters.tui.TuiHelper;
 import com.mossman.domain.query.TicketFilter;
+import net.minecraft.command.argument.GameProfileArgumentType;
 import net.minecraft.command.argument.NbtCompoundArgumentType;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.server.command.CommandManager;
@@ -18,6 +19,7 @@ import net.minecraft.util.Formatting;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 public class TicketCommand {
 
@@ -48,6 +50,15 @@ public class TicketCommand {
                         .then(CommandManager.argument("key", StringArgumentType.word()).suggests(SuggestionHelper::suggestTicketKeys)
                                 .then(CommandManager.argument("message", StringArgumentType.greedyString())
                                         .executes(TicketCommand::addComment))))
+                .then(CommandManager.literal("assign")
+                        .then(CommandManager.argument("key", StringArgumentType.word()).suggests(SuggestionHelper::suggestTicketKeys)
+                                .then(CommandManager.argument("player", GameProfileArgumentType.gameProfile())
+                                        .executes(TicketCommand::assignTicket))))
+                .then(CommandManager.literal("unassign")
+                        .then(CommandManager.argument("key", StringArgumentType.word()).suggests(SuggestionHelper::suggestTicketKeys)
+                                .then(CommandManager.argument("player", GameProfileArgumentType.gameProfile())
+                                        .suggests(SuggestionHelper.suggestTicketAssignees("key"))
+                                        .executes(TicketCommand::unassignTicket))))
                 .build();
 
         rootNode.addChild(ticketNode);
@@ -229,6 +240,26 @@ public class TicketCommand {
         descLine.append(Text.literal("Description: " + (ticket.getDescription() != null ? ticket.getDescription() : "None")).formatted(Formatting.GRAY));
         source.sendMessage(descLine);
 
+        // Assignees
+        MutableText assigneesLine = Text.literal("Assignees: ").formatted(Formatting.GRAY);
+        if (ticket.getAssignees().isEmpty()) {
+            assigneesLine.append(Text.literal("None").formatted(Formatting.GRAY));
+        } else {
+            for (UUID assigneeId : ticket.getAssignees()) {
+                String username = resolveUsername(assigneeId, project, source);
+                assigneesLine.append(Text.literal(username).formatted(Formatting.WHITE));
+                if (isEditor) {
+                    assigneesLine.append(Text.literal(" ").formatted(Formatting.WHITE));
+                    assigneesLine.append(TuiHelper.createRunLink("[✗]", "/mossman ticket unassign " + key + " " + username, "Unassign " + username, Formatting.RED));
+                }
+                assigneesLine.append(Text.literal(" ").formatted(Formatting.WHITE));
+            }
+        }
+        source.sendMessage(assigneesLine);
+        if (isEditor) {
+            source.sendMessage(TuiHelper.createSuggestLink("[+ Assign] ", "/mossman ticket assign " + key + " ", "Assign a player", Formatting.GOLD));
+        }
+
         if (com.mossman.domain.auth.PermissionChecker.hasPermission(project, source, com.mossman.domain.entities.Permission.EDITOR)) {
             MutableText editBtn = TuiHelper.createSuggestLink("[Edit] ", "/mossman ticket update " + key + " ", "Edit ticket fields", Formatting.YELLOW);
             source.sendMessage(editBtn);
@@ -306,6 +337,54 @@ public class TicketCommand {
         }
     }
 
+    private static int assignTicket(CommandContext<ServerCommandSource> context) {
+        ServerCommandSource source = context.getSource();
+        String key = StringArgumentType.getString(context, "key");
+        try {
+            String prefix = key.split("-")[0];
+            int number = Integer.parseInt(key.split("-")[1]);
+            var project = com.mossman.MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream()
+                    .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Project not found"));
+            var ticket = com.mossman.MossManMod.getTicketRepository().findByProjectId(project.getId(), 0, Integer.MAX_VALUE).stream()
+                    .filter(t -> t.getTicketNumber() == number).findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
+            UUID requesterId = source.getPlayer() != null ? source.getPlayer().getUuid() : UUID.randomUUID();
+            for (var profile : GameProfileArgumentType.getProfileArgument(context, "player")) {
+                com.mossman.MossManMod.getAssignTicketUseCase().execute(ticket.getId(), requesterId, profile.id());
+                source.sendMessage(Text.literal("Assigned " + profile.name() + " to " + key).formatted(Formatting.GREEN));
+            }
+            return 1;
+        } catch (Exception e) {
+            source.sendMessage(Text.literal("Failed to assign: " + e.getMessage()).formatted(Formatting.RED));
+            return 0;
+        }
+    }
+
+    private static int unassignTicket(CommandContext<ServerCommandSource> context) {
+        ServerCommandSource source = context.getSource();
+        String key = StringArgumentType.getString(context, "key");
+        try {
+            String prefix = key.split("-")[0];
+            int number = Integer.parseInt(key.split("-")[1]);
+            var project = com.mossman.MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream()
+                    .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Project not found"));
+            var ticket = com.mossman.MossManMod.getTicketRepository().findByProjectId(project.getId(), 0, Integer.MAX_VALUE).stream()
+                    .filter(t -> t.getTicketNumber() == number).findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
+            UUID requesterId = source.getPlayer() != null ? source.getPlayer().getUuid() : UUID.randomUUID();
+            for (var profile : GameProfileArgumentType.getProfileArgument(context, "player")) {
+                com.mossman.MossManMod.getUnassignTicketUseCase().execute(ticket.getId(), requesterId, profile.id());
+                source.sendMessage(Text.literal("Unassigned " + profile.name() + " from " + key).formatted(Formatting.GREEN));
+            }
+            return 1;
+        } catch (Exception e) {
+            source.sendMessage(Text.literal("Failed to unassign: " + e.getMessage()).formatted(Formatting.RED));
+            return 0;
+        }
+    }
+
     private static int updateTicket(CommandContext<ServerCommandSource> context) {
         ServerCommandSource source = context.getSource();
         String key = StringArgumentType.getString(context, "key");
@@ -331,6 +410,20 @@ public class TicketCommand {
             return 0;
         }
     }
+    /**
+     * Resolves a UUID to a display name.
+     * Priority: project member list → online player → short UUID fallback.
+     */
+    private static String resolveUsername(UUID uuid, com.mossman.domain.entities.Project project, ServerCommandSource source) {
+        var member = project.getMembers().stream()
+                .filter(m -> m.uuid().equals(uuid))
+                .findFirst();
+        if (member.isPresent()) return member.get().username();
+        var online = source.getServer().getPlayerManager().getPlayer(uuid);
+        if (online != null) return online.getName().getString();
+        return uuid.toString().substring(0, 8) + "...";
+    }
+
     private static String getFilterNbt(CommandContext<ServerCommandSource> context) {
         try {
             return NbtCompoundArgumentType.getNbtCompound(context, "filter").toString();

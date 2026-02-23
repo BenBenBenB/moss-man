@@ -36,6 +36,8 @@ public class MossManMod implements ModInitializer {
     private static UpdateProjectStatusesUseCase updateProjectStatusesUseCase;
     private static UpdateProjectTicketTypesUseCase updateProjectTicketTypesUseCase;
     private static UpdateProjectRelationshipTypesUseCase updateProjectRelationshipTypesUseCase;
+    private static AssignTicketUseCase assignTicketUseCase;
+    private static UnassignTicketUseCase unassignTicketUseCase;
 
     private static OrmLiteProjectRepository projectRepository;
     private static OrmLiteTicketRepository ticketRepository;
@@ -68,6 +70,8 @@ public class MossManMod implements ModInitializer {
             updateProjectStatusesUseCase = new UpdateProjectStatusesUseCase(projectRepository);
             updateProjectTicketTypesUseCase = new UpdateProjectTicketTypesUseCase(projectRepository);
             updateProjectRelationshipTypesUseCase = new UpdateProjectRelationshipTypesUseCase(projectRepository);
+            assignTicketUseCase = new AssignTicketUseCase(ticketRepository, projectRepository, eventBus);
+            unassignTicketUseCase = new UnassignTicketUseCase(ticketRepository, projectRepository, eventBus);
 
             LOGGER.info("Database and Use Cases initialized successfully.");
         } catch (SQLException e) {
@@ -95,6 +99,8 @@ public class MossManMod implements ModInitializer {
     public static UpdateProjectStatusesUseCase getUpdateProjectStatusesUseCase() { return updateProjectStatusesUseCase; }
     public static UpdateProjectTicketTypesUseCase getUpdateProjectTicketTypesUseCase() { return updateProjectTicketTypesUseCase; }
     public static UpdateProjectRelationshipTypesUseCase getUpdateProjectRelationshipTypesUseCase() { return updateProjectRelationshipTypesUseCase; }
+    public static AssignTicketUseCase getAssignTicketUseCase() { return assignTicketUseCase; }
+    public static UnassignTicketUseCase getUnassignTicketUseCase() { return unassignTicketUseCase; }
     public static OrmLiteProjectRepository getProjectRepository() { return projectRepository; }
     public static OrmLiteMemberRepository getMemberRepository() { return memberRepository; }
     public static OrmLiteTicketRepository getTicketRepository() { return ticketRepository; }

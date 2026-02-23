@@ -114,4 +114,16 @@ class AddMemberUseCaseTest {
         assertThrows(IllegalArgumentException.class, () ->
                 useCase.execute(1L, ownerId, new Member(0, UUID.randomUUID(), "x", "x", Permission.VIEWER)));
     }
+
+    @Test
+    void testExecute_ThrowsIfAlreadyMember() {
+        Project project = buildProject();
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+
+        // adminId is already a member of the project built by buildProject()
+        Member duplicate = new Member(0, adminId, "admin", "", Permission.EDITOR);
+        assertThrows(IllegalArgumentException.class, () ->
+                useCase.execute(1L, ownerId, duplicate));
+        verify(projectRepository, never()).save(any());
+    }
 }

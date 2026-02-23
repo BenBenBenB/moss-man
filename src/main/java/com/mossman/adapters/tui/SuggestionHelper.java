@@ -104,6 +104,44 @@ public final class SuggestionHelper {
         };
     }
 
+    /**
+     * Returns a provider that suggests the current assignee names for a ticket,
+     * identified by the already-parsed {@code keyArgName} argument (e.g. "MOSS-1").
+     * Useful for the {@code ticket unassign} command.
+     */
+    public static SuggestionProvider<ServerCommandSource> suggestTicketAssignees(String keyArgName) {
+        return (ctx, builder) -> {
+            try {
+                String key = StringArgumentType.getString(ctx, keyArgName);
+                String[] parts = key.split("-");
+                if (parts.length < 2) return builder.buildFuture();
+                String prefix = parts[0];
+                int number = Integer.parseInt(parts[1]);
+                var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream()
+                        .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix))
+                        .findFirst().orElse(null);
+                if (project == null) return builder.buildFuture();
+                var ticket = MossManMod.getTicketRepository()
+                        .findByProjectId(project.getId(), 0, Integer.MAX_VALUE).stream()
+                        .filter(t -> t.getTicketNumber() == number)
+                        .findFirst().orElse(null);
+                if (ticket == null) return builder.buildFuture();
+                var server = ctx.getSource().getServer();
+                var names = ticket.getAssignees().stream()
+                        .map(uuid -> {
+                            var m = project.getMembers().stream()
+                                    .filter(mm -> mm.uuid().equals(uuid)).findFirst();
+                            if (m.isPresent()) return m.get().username();
+                            var online = server.getPlayerManager().getPlayer(uuid);
+                            return online != null ? online.getName().getString() : uuid.toString();
+                        });
+                return suggest(builder, names);
+            } catch (Exception e) {
+                return builder.buildFuture();
+            }
+        };
+    }
+
     /** Suggests the assignable permission values (excludes FORBID and OWNER). */
     public static CompletableFuture<Suggestions> suggestAssignablePermissions(
             CommandContext<ServerCommandSource> ctx, SuggestionsBuilder builder) {
