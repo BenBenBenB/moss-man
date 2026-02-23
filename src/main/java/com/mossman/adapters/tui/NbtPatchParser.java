@@ -33,13 +33,12 @@ public final class NbtPatchParser {
             NbtElement element = nbt.get(key);
             if (element == null) continue;
             byte type = element.getType();
-            String lowerKey = key.toLowerCase();
             if (type == NbtElement.STRING_TYPE) {
                 // getString returns Optional<String> in 1.21.11
-                nbt.getString(key).ifPresent(val -> map.put(lowerKey, val));
+                nbt.getString(key).ifPresent(val -> map.put(key, val));
             } else if (isNumeric(type)) {
                 // Numeric types: toString() gives the raw SNBT literal (e.g. "42", "3.14f")
-                map.put(lowerKey, element.toString());
+                map.put(key, element.toString());
             }
             // Lists / compounds are silently ignored
         }
