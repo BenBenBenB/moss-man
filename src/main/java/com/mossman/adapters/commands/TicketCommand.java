@@ -42,6 +42,7 @@ public class TicketCommand {
                 .then(CommandManager.literal("update")
                         .then(CommandManager.argument("key", StringArgumentType.word()).suggests(SuggestionHelper::suggestTicketKeys)
                                 .then(CommandManager.argument("patch", NbtCompoundArgumentType.nbtCompound())
+                                        .suggests(SuggestionHelper.suggestTicketPatch("key"))
                                         .executes(TicketCommand::updateTicket))))
                 .then(CommandManager.literal("comment")
                         .then(CommandManager.argument("key", StringArgumentType.word()).suggests(SuggestionHelper::suggestTicketKeys)
