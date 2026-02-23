@@ -1,12 +1,40 @@
 package com.mossman.domain.usecases;
 
+import com.mossman.domain.entities.Member;
+import com.mossman.domain.entities.Permission;
 import com.mossman.domain.entities.Project;
+import com.mossman.domain.entities.RelationshipType;
+import com.mossman.domain.entities.Status;
+import com.mossman.domain.entities.TicketType;
 import com.mossman.domain.events.DomainEventBus;
 import com.mossman.domain.events.ProjectCreatedEvent;
 import com.mossman.domain.repositories.ProjectRepository;
+
 import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
 
 public class CreateProjectUseCase {
+
+    private static final List<Status> DEFAULT_STATUSES = List.of(
+            new Status("OPEN", ""),
+            new Status("IN_PROGRESS", ""),
+            new Status("IN_REVIEW", ""),
+            new Status("DONE", "")
+    );
+
+    private static final List<TicketType> DEFAULT_TICKET_TYPES = List.of(
+            new TicketType("Task", ""),
+            new TicketType("Bug", ""),
+            new TicketType("Feature", "")
+    );
+
+    private static final List<RelationshipType> DEFAULT_RELATIONSHIP_TYPES = List.of(
+            new RelationshipType("blocks", "blocks", "is blocked by", ""),
+            new RelationshipType("duplicates", "duplicates", "is duplicated by", ""),
+            new RelationshipType("relates to", "relates to", "relates to", "")
+    );
+
     private final ProjectRepository projectRepository;
     private final DomainEventBus eventBus;
 
@@ -15,14 +43,16 @@ public class CreateProjectUseCase {
         this.eventBus = eventBus;
     }
 
-    public Project execute(Project.Builder projectBuilder, java.util.UUID creatorId, String creatorUsername) {
-        // Initial owner member
-        com.mossman.domain.entities.Member owner = new com.mossman.domain.entities.Member(0, creatorId, creatorUsername, "Project Owner", com.mossman.domain.entities.Permission.OWNER);
-        
+    public Project execute(Project.Builder projectBuilder, UUID creatorId, String creatorUsername) {
+        Member owner = new Member(0, creatorId, creatorUsername, "Project Owner", Permission.OWNER);
+
         Project project = projectBuilder
-                .members(java.util.List.of(owner))
+                .members(List.of(owner))
+                .statuses(DEFAULT_STATUSES)
+                .ticketTypes(DEFAULT_TICKET_TYPES)
+                .relationshipTypes(DEFAULT_RELATIONSHIP_TYPES)
                 .build();
-        
+
         Project savedProject = projectRepository.save(project);
         eventBus.publish(new ProjectCreatedEvent(savedProject, Instant.now()));
         return savedProject;
