@@ -175,12 +175,13 @@ public class ProjectCommand {
             source.sendMessage(Text.literal("No projects available to view.").formatted(Formatting.GRAY));
         } else {
             for (var project : paginatedProjects) {
-                MutableText projectLink = TuiHelper.createRunLink(
-                        "[" + project.getTicketPrefix() + "]", 
-                        "/mossman project view " + project.getTicketPrefix(), 
-                        TuiHelper.translatable("mossman.tui.project.view_hover").getString(), 
-                        Formatting.GREEN
-                ).append(Text.literal(" " + project.getName()).formatted(Formatting.WHITE));
+                String tc = project.getTextColor();
+                MutableText projectLink = applyProjectColor(TuiHelper.createRunLink(
+                        "[" + project.getTicketPrefix() + "]",
+                        "/mossman project view " + project.getTicketPrefix(),
+                        TuiHelper.translatable("mossman.tui.project.view_hover").getString(),
+                        Formatting.GREEN), tc)
+                        .append(applyProjectColor(Text.literal(" " + project.getName()).formatted(Formatting.WHITE), tc));
                 source.sendMessage(projectLink);
             }
         }
@@ -230,7 +231,9 @@ public class ProjectCommand {
             return 0;
         }
 
-        source.sendMessage(Text.literal("--- Project: [" + project.getTicketPrefix() + "] ---").formatted(Formatting.AQUA));
+        source.sendMessage(Text.literal("--- Project: [").formatted(Formatting.AQUA)
+                .append(applyProjectColor(Text.literal(project.getTicketPrefix()), project.getTextColor()))
+                .append(Text.literal("] ---").formatted(Formatting.AQUA)));
         
         boolean isEditor = PermissionChecker.hasPermission(project, source, Permission.EDITOR);
 
@@ -416,7 +419,9 @@ public class ProjectCommand {
         long totalMembers = MossManMod.getMemberRepository().countByProjectId(project.getId());
         int totalPages = (int) Math.ceil((double) totalMembers / pageSize);
 
-        source.sendMessage(Text.literal("--- Members of " + project.getName() + " ---").formatted(Formatting.AQUA));
+        source.sendMessage(Text.literal("--- Members of ").formatted(Formatting.AQUA)
+                .append(applyProjectColor(Text.literal(project.getName()), project.getTextColor()))
+                .append(Text.literal(" ---").formatted(Formatting.AQUA)));
         if (members.isEmpty()) {
             source.sendMessage(Text.literal("No members found.").formatted(Formatting.GRAY));
         } else {
@@ -561,7 +566,9 @@ public class ProjectCommand {
         if (project == null) { source.sendMessage(Text.literal("Project not found: " + prefix).formatted(Formatting.RED)); return 0; }
         if (!PermissionChecker.canView(project, source)) { source.sendMessage(Text.literal("No permission.").formatted(Formatting.RED)); return 0; }
 
-        source.sendMessage(Text.literal("--- Statuses of " + project.getName() + " ---").formatted(Formatting.AQUA));
+        source.sendMessage(Text.literal("--- Statuses of ").formatted(Formatting.AQUA)
+                .append(applyProjectColor(Text.literal(project.getName()), project.getTextColor()))
+                .append(Text.literal(" ---").formatted(Formatting.AQUA)));
         boolean isEditorStatus = PermissionChecker.hasPermission(project, source, Permission.EDITOR);
         if (project.getStatuses().isEmpty()) {
             source.sendMessage(Text.literal("No statuses found.").formatted(Formatting.GRAY));
@@ -665,7 +672,9 @@ public class ProjectCommand {
         var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream().filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
         if (project == null || !PermissionChecker.canView(project, source)) return 0;
 
-        source.sendMessage(Text.literal("--- Ticket Types of " + project.getName() + " ---").formatted(Formatting.AQUA));
+        source.sendMessage(Text.literal("--- Ticket Types of ").formatted(Formatting.AQUA)
+                .append(applyProjectColor(Text.literal(project.getName()), project.getTextColor()))
+                .append(Text.literal(" ---").formatted(Formatting.AQUA)));
         boolean isEditorTT = PermissionChecker.hasPermission(project, source, Permission.EDITOR);
         if (project.getTicketTypes().isEmpty()) {
             source.sendMessage(Text.literal("No ticket types found.").formatted(Formatting.GRAY));
@@ -765,7 +774,9 @@ public class ProjectCommand {
         var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream().filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
         if (project == null || !PermissionChecker.canView(project, source)) return 0;
 
-        source.sendMessage(Text.literal("--- Relationship Types of " + project.getName() + " ---").formatted(Formatting.AQUA));
+        source.sendMessage(Text.literal("--- Relationship Types of ").formatted(Formatting.AQUA)
+                .append(applyProjectColor(Text.literal(project.getName()), project.getTextColor()))
+                .append(Text.literal(" ---").formatted(Formatting.AQUA)));
         boolean isEditorRT = PermissionChecker.hasPermission(project, source, Permission.EDITOR);
         if (project.getRelationshipTypes().isEmpty()) {
             source.sendMessage(Text.literal("No relationship types found.").formatted(Formatting.GRAY));
@@ -936,6 +947,20 @@ public class ProjectCommand {
             source.sendMessage(Text.literal(e.getMessage()).formatted(Formatting.RED));
         }
         return 1;
+    }
+
+    /** Overlays the project textColor onto an existing MutableText, preserving click/hover events. */
+    private static MutableText applyProjectColor(MutableText text, String textColor) {
+        if (textColor == null || textColor.isBlank()) return text;
+        Formatting fmt = Formatting.byName(textColor.toLowerCase());
+        if (fmt != null && fmt.isColor()) return text.styled(s -> s.withColor(fmt));
+        if (textColor.startsWith("#") && textColor.length() == 7) {
+            try {
+                int rgb = Integer.parseInt(textColor.substring(1), 16);
+                return text.styled(s -> s.withColor(rgb));
+            } catch (NumberFormatException ignored) {}
+        }
+        return text;
     }
 
     private static MutableText coloredName(String name, String textColor) {
