@@ -91,7 +91,11 @@ public class ProjectCommand {
                                         .then(CommandManager.argument("name", StringArgumentType.word()).suggests(SuggestionHelper.suggestStatusNames("prefix"))
                                                 .then(CommandManager.argument("patch", NbtCompoundArgumentType.nbtCompound())
                                                         .suggests(SuggestionHelper.suggestStatusPatch())
-                                                        .executes(ProjectCommand::updateStatus))))))
+                                                        .executes(ProjectCommand::updateStatus)))))
+                        .then(CommandManager.literal("remove")
+                                .then(CommandManager.argument("prefix", StringArgumentType.word()).suggests(SuggestionHelper::suggestVisiblePrefixes)
+                                        .then(CommandManager.argument("name", StringArgumentType.word()).suggests(SuggestionHelper.suggestStatusNames("prefix"))
+                                                .executes(ProjectCommand::removeStatus)))))
                 .then(CommandManager.literal("ticketType")
                         .then(CommandManager.literal("add")
                                 .then(CommandManager.argument("prefix", StringArgumentType.word()).suggests(SuggestionHelper::suggestVisiblePrefixes)
@@ -109,7 +113,11 @@ public class ProjectCommand {
                                         .then(CommandManager.argument("name", StringArgumentType.word()).suggests(SuggestionHelper.suggestTicketTypeNames("prefix"))
                                                 .then(CommandManager.argument("patch", NbtCompoundArgumentType.nbtCompound())
                                                         .suggests(SuggestionHelper.suggestTicketTypePatch())
-                                                        .executes(ProjectCommand::updateTicketType))))))
+                                                        .executes(ProjectCommand::updateTicketType)))))
+                        .then(CommandManager.literal("remove")
+                                .then(CommandManager.argument("prefix", StringArgumentType.word()).suggests(SuggestionHelper::suggestVisiblePrefixes)
+                                        .then(CommandManager.argument("name", StringArgumentType.word()).suggests(SuggestionHelper.suggestTicketTypeNames("prefix"))
+                                                .executes(ProjectCommand::removeTicketType)))))
                 .then(CommandManager.literal("relationshipType")
                         .then(CommandManager.literal("add")
                                 .then(CommandManager.argument("prefix", StringArgumentType.word()).suggests(SuggestionHelper::suggestVisiblePrefixes)
@@ -127,7 +135,11 @@ public class ProjectCommand {
                                         .then(CommandManager.argument("name", StringArgumentType.word()).suggests(SuggestionHelper.suggestRelationshipTypeNames("prefix"))
                                                 .then(CommandManager.argument("patch", NbtCompoundArgumentType.nbtCompound())
                                                         .suggests(SuggestionHelper.suggestRelationshipTypePatch())
-                                                        .executes(ProjectCommand::updateRelationshipType))))))
+                                                        .executes(ProjectCommand::updateRelationshipType)))))
+                        .then(CommandManager.literal("remove")
+                                .then(CommandManager.argument("prefix", StringArgumentType.word()).suggests(SuggestionHelper::suggestVisiblePrefixes)
+                                        .then(CommandManager.argument("name", StringArgumentType.word()).suggests(SuggestionHelper.suggestRelationshipTypeNames("prefix"))
+                                                .executes(ProjectCommand::removeRelationshipType)))))
                 .build();
 
         rootNode.addChild(projectNode);
@@ -549,18 +561,22 @@ public class ProjectCommand {
         if (!PermissionChecker.canView(project, source)) { source.sendMessage(Text.literal("No permission.").formatted(Formatting.RED)); return 0; }
 
         source.sendMessage(Text.literal("--- Statuses of " + project.getName() + " ---").formatted(Formatting.AQUA));
+        boolean isEditorStatus = PermissionChecker.hasPermission(project, source, Permission.EDITOR);
         if (project.getStatuses().isEmpty()) {
             source.sendMessage(Text.literal("No statuses found.").formatted(Formatting.GRAY));
         } else {
             for (var status : project.getStatuses()) {
-                MutableText text = TuiHelper.createRunLink("[" + status.name() + "] ", "/mossman project status view " + prefix + " " + status.name(), "View status details", Formatting.GREEN)
-                        .append(Text.literal(status.name()).formatted(Formatting.WHITE));
-                if (status.textColor() != null && !status.textColor().isEmpty()) text.append(Text.literal(" (Color: " + status.textColor() + ")").formatted(Formatting.GRAY));
-                source.sendMessage(text);
+                MutableText line = Text.empty();
+                if (isEditorStatus) {
+                    line.append(TuiHelper.createRunLink("[View] ", "/mossman project status view " + prefix + " " + status.name(), "View " + status.name(), Formatting.GOLD));
+                    line.append(TuiHelper.createRunLink("[✗] ", "/mossman project status remove " + prefix + " " + status.name(), "Remove " + status.name(), Formatting.RED));
+                }
+                line.append(coloredName(status.name(), status.textColor()));
+                source.sendMessage(line);
             }
         }
 
-        if (PermissionChecker.hasPermission(project, source, Permission.EDITOR)) {
+        if (isEditorStatus) {
             source.sendMessage(TuiHelper.createSuggestLink("[Add Status] ", "/mossman project status add " + prefix + " ", "Click to add a new status", Formatting.GOLD));
         }
         return 1;
@@ -649,18 +665,22 @@ public class ProjectCommand {
         if (project == null || !PermissionChecker.canView(project, source)) return 0;
 
         source.sendMessage(Text.literal("--- Ticket Types of " + project.getName() + " ---").formatted(Formatting.AQUA));
+        boolean isEditorTT = PermissionChecker.hasPermission(project, source, Permission.EDITOR);
         if (project.getTicketTypes().isEmpty()) {
             source.sendMessage(Text.literal("No ticket types found.").formatted(Formatting.GRAY));
         } else {
             for (var tt : project.getTicketTypes()) {
-                MutableText text = TuiHelper.createRunLink("[" + tt.name() + "] ", "/mossman project ticketType view " + prefix + " " + tt.name(), "View ticket type details", Formatting.GREEN)
-                        .append(Text.literal(tt.name()).formatted(Formatting.WHITE));
-                if (tt.textColor() != null && !tt.textColor().isEmpty()) text.append(Text.literal(" (Color: " + tt.textColor() + ")").formatted(Formatting.GRAY));
-                source.sendMessage(text);
+                MutableText line = Text.empty();
+                if (isEditorTT) {
+                    line.append(TuiHelper.createRunLink("[View] ", "/mossman project ticketType view " + prefix + " " + tt.name(), "View " + tt.name(), Formatting.GOLD));
+                    line.append(TuiHelper.createRunLink("[✗] ", "/mossman project ticketType remove " + prefix + " " + tt.name(), "Remove " + tt.name(), Formatting.RED));
+                }
+                line.append(coloredName(tt.name(), tt.textColor()));
+                source.sendMessage(line);
             }
         }
 
-        if (PermissionChecker.hasPermission(project, source, Permission.EDITOR)) {
+        if (isEditorTT) {
             source.sendMessage(TuiHelper.createSuggestLink("[Add Ticket Type] ", "/mossman project ticketType add " + prefix + " ", "Click to add a new ticket type", Formatting.GOLD));
         }
         return 1;
@@ -745,18 +765,22 @@ public class ProjectCommand {
         if (project == null || !PermissionChecker.canView(project, source)) return 0;
 
         source.sendMessage(Text.literal("--- Relationship Types of " + project.getName() + " ---").formatted(Formatting.AQUA));
+        boolean isEditorRT = PermissionChecker.hasPermission(project, source, Permission.EDITOR);
         if (project.getRelationshipTypes().isEmpty()) {
             source.sendMessage(Text.literal("No relationship types found.").formatted(Formatting.GRAY));
         } else {
             for (var rt : project.getRelationshipTypes()) {
-                MutableText text = TuiHelper.createRunLink("[" + rt.name() + "] ", "/mossman project relationshipType view " + prefix + " " + rt.name(), "View relationship type details", Formatting.GREEN)
-                        .append(Text.literal(rt.name()).formatted(Formatting.WHITE));
-                if (rt.textColor() != null && !rt.textColor().isEmpty()) text.append(Text.literal(" (Color: " + rt.textColor() + ")").formatted(Formatting.GRAY));
-                source.sendMessage(text);
+                MutableText line = Text.empty();
+                if (isEditorRT) {
+                    line.append(TuiHelper.createRunLink("[View] ", "/mossman project relationshipType view " + prefix + " " + rt.name(), "View " + rt.name(), Formatting.GOLD));
+                    line.append(TuiHelper.createRunLink("[✗] ", "/mossman project relationshipType remove " + prefix + " " + rt.name(), "Remove " + rt.name(), Formatting.RED));
+                }
+                line.append(coloredName(rt.name(), rt.textColor()));
+                source.sendMessage(line);
             }
         }
 
-        if (PermissionChecker.hasPermission(project, source, Permission.EDITOR)) {
+        if (isEditorRT) {
             source.sendMessage(TuiHelper.createSuggestLink("[Add Relationship Type] ", "/mossman project relationshipType add " + prefix + " ", "Click to add a new relationship type", Formatting.GOLD));
         }
         return 1;
@@ -845,6 +869,80 @@ public class ProjectCommand {
             source.sendMessage(Text.literal(e.getMessage()).formatted(Formatting.RED));
         }
         return 1;
+    }
+
+    private static int removeStatus(CommandContext<ServerCommandSource> context) {
+        ServerCommandSource source = context.getSource();
+        String prefix = StringArgumentType.getString(context, "prefix");
+        String name = StringArgumentType.getString(context, "name");
+        var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream().filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
+        if (project == null || !PermissionChecker.hasPermission(project, source, Permission.EDITOR)) return 0;
+
+        var target = project.getStatuses().stream().filter(s -> s.name().equalsIgnoreCase(name)).findFirst().orElse(null);
+        if (target == null) { source.sendMessage(Text.literal("Status not found: " + name).formatted(Formatting.RED)); return 0; }
+
+        java.util.List<com.mossman.domain.entities.Status> newStatuses = new java.util.ArrayList<>(project.getStatuses());
+        newStatuses.remove(target);
+        try {
+            UUID rId = source.getPlayer() != null ? source.getPlayer().getUuid() : UUID.randomUUID();
+            MossManMod.getUpdateProjectStatusesUseCase().execute(project.getId(), rId, newStatuses);
+            source.sendMessage(Text.literal("Removed status " + name).formatted(Formatting.YELLOW));
+        } catch (IllegalArgumentException e) {
+            source.sendMessage(Text.literal(e.getMessage()).formatted(Formatting.RED));
+        }
+        return 1;
+    }
+
+    private static int removeTicketType(CommandContext<ServerCommandSource> context) {
+        ServerCommandSource source = context.getSource();
+        String prefix = StringArgumentType.getString(context, "prefix");
+        String name = StringArgumentType.getString(context, "name");
+        var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream().filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
+        if (project == null || !PermissionChecker.hasPermission(project, source, Permission.EDITOR)) return 0;
+
+        var target = project.getTicketTypes().stream().filter(t -> t.name().equalsIgnoreCase(name)).findFirst().orElse(null);
+        if (target == null) { source.sendMessage(Text.literal("Ticket type not found: " + name).formatted(Formatting.RED)); return 0; }
+
+        java.util.List<com.mossman.domain.entities.TicketType> newLists = new java.util.ArrayList<>(project.getTicketTypes());
+        newLists.remove(target);
+        try {
+            UUID rId = source.getPlayer() != null ? source.getPlayer().getUuid() : UUID.randomUUID();
+            MossManMod.getUpdateProjectTicketTypesUseCase().execute(project.getId(), rId, newLists);
+            source.sendMessage(Text.literal("Removed ticket type " + name).formatted(Formatting.YELLOW));
+        } catch (IllegalArgumentException e) {
+            source.sendMessage(Text.literal(e.getMessage()).formatted(Formatting.RED));
+        }
+        return 1;
+    }
+
+    private static int removeRelationshipType(CommandContext<ServerCommandSource> context) {
+        ServerCommandSource source = context.getSource();
+        String prefix = StringArgumentType.getString(context, "prefix");
+        String name = StringArgumentType.getString(context, "name");
+        var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream().filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
+        if (project == null || !PermissionChecker.hasPermission(project, source, Permission.EDITOR)) return 0;
+
+        var target = project.getRelationshipTypes().stream().filter(t -> t.name().equalsIgnoreCase(name)).findFirst().orElse(null);
+        if (target == null) { source.sendMessage(Text.literal("Relationship type not found: " + name).formatted(Formatting.RED)); return 0; }
+
+        java.util.List<com.mossman.domain.entities.RelationshipType> newLists = new java.util.ArrayList<>(project.getRelationshipTypes());
+        newLists.remove(target);
+        try {
+            UUID rId = source.getPlayer() != null ? source.getPlayer().getUuid() : UUID.randomUUID();
+            MossManMod.getUpdateProjectRelationshipTypesUseCase().execute(project.getId(), rId, newLists);
+            source.sendMessage(Text.literal("Removed relationship type " + name).formatted(Formatting.YELLOW));
+        } catch (IllegalArgumentException e) {
+            source.sendMessage(Text.literal(e.getMessage()).formatted(Formatting.RED));
+        }
+        return 1;
+    }
+
+    private static MutableText coloredName(String name, String textColor) {
+        if (textColor != null && !textColor.isBlank()) {
+            Formatting fmt = Formatting.byName(textColor.toLowerCase());
+            if (fmt != null && fmt.isColor()) return Text.literal(name).formatted(fmt);
+        }
+        return Text.literal(name).formatted(Formatting.WHITE);
     }
 
     private static com.mossman.domain.entities.Project.Builder cloneProjectWithLists(com.mossman.domain.entities.Project project) {
