@@ -14,6 +14,7 @@ import net.minecraft.command.argument.NbtCompoundArgumentType;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.MutableText;
+import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import com.mossman.domain.auth.PermissionChecker;
@@ -941,6 +942,12 @@ public class ProjectCommand {
         if (textColor != null && !textColor.isBlank()) {
             Formatting fmt = Formatting.byName(textColor.toLowerCase());
             if (fmt != null && fmt.isColor()) return Text.literal(name).formatted(fmt);
+            if (textColor.startsWith("#") && textColor.length() == 7) {
+                try {
+                    int rgb = Integer.parseInt(textColor.substring(1), 16);
+                    return Text.literal(name).setStyle(Style.EMPTY.withColor(rgb));
+                } catch (NumberFormatException ignored) {}
+            }
         }
         return Text.literal(name).formatted(Formatting.WHITE);
     }
