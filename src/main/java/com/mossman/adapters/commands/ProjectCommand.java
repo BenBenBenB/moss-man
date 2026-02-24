@@ -131,7 +131,7 @@ public class ProjectCommand {
                                         .executes(ProjectCommand::listRelationshipTypes)))
                         .then(CommandManager.literal("view")
                                 .then(CommandManager.argument("prefix", StringArgumentType.word()).suggests(SuggestionHelper::suggestVisiblePrefixes)
-                                        .then(CommandManager.argument("name", StringArgumentType.word()).suggests(SuggestionHelper.suggestRelationshipTypeNames("prefix"))
+                                        .then(CommandManager.argument("name", StringArgumentType.greedyString()).suggests(SuggestionHelper.suggestRelationshipTypeNames("prefix"))
                                                 .executes(ProjectCommand::viewRelationshipType))))
                         .then(CommandManager.literal("update")
                                 .then(CommandManager.argument("prefix", StringArgumentType.word()).suggests(SuggestionHelper::suggestVisiblePrefixes)
@@ -142,6 +142,7 @@ public class ProjectCommand {
                         .then(CommandManager.literal("remove")
                                 .then(CommandManager.argument("prefix", StringArgumentType.word()).suggests(SuggestionHelper::suggestVisiblePrefixes)
                                         .then(CommandManager.argument("name", StringArgumentType.word()).suggests(SuggestionHelper.suggestRelationshipTypeNames("prefix"))
+                                                .executes(ProjectCommand::removeRelationshipType)
                                                 .then(CommandManager.argument("replacement", StringArgumentType.word()).suggests(SuggestionHelper.suggestRelationshipTypeNames("prefix"))
                                                         .executes(ProjectCommand::removeRelationshipType))))))
                 .build();
@@ -788,7 +789,7 @@ public class ProjectCommand {
                 MutableText line = Text.empty();
                 if (isEditorRT) {
                     line.append(TuiHelper.createRunLink("[View] ", "/mossman project relationshipType view " + prefix + " " + rt.name(), "View " + rt.name(), Formatting.GOLD));
-                    line.append(TuiHelper.createSuggestLink("[✗] ", "/mossman project relationshipType remove " + prefix + " " + rt.name() + " ", "Remove " + rt.name() + " (type replacement)", Formatting.RED));
+                    line.append(TuiHelper.createSuggestLink("[✗] ", "/mossman project relationshipType remove " + prefix + " " + rt.name(), "Remove " + rt.name(), Formatting.RED));
                 }
                 line.append(coloredName(rt.name(), rt.textColor()));
                 source.sendMessage(line);
@@ -980,7 +981,9 @@ public class ProjectCommand {
         ServerCommandSource source = context.getSource();
         String prefix = StringArgumentType.getString(context, "prefix");
         String name = StringArgumentType.getString(context, "name");
-        String replacementName = StringArgumentType.getString(context, "replacement");
+        String replacementName = null;
+        try { replacementName = StringArgumentType.getString(context, "replacement"); } catch (Exception ignored) {}
+
         var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream().filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
         if (project == null || !PermissionChecker.hasPermission(project, source, Permission.EDITOR)) return 0;
 
@@ -990,16 +993,48 @@ public class ProjectCommand {
         java.util.List<com.mossman.domain.entities.RelationshipType> newLists = new java.util.ArrayList<>(project.getRelationshipTypes());
         newLists.remove(target);
 
-        var replacementType = newLists.stream().filter(t -> t.name().equalsIgnoreCase(replacementName)).findFirst().orElse(null);
-        if (replacementType == null) {
-            source.sendMessage(Text.literal("Replacement relationship type not found: " + replacementName).formatted(Formatting.RED));
-            return 0;
+        // Find all existing relationships of this type across all project tickets
+        var allTickets = MossManMod.getTicketRepository().findByProjectId(project.getId(), 0, Integer.MAX_VALUE);
+        var relRepo = MossManMod.getTicketRelationshipRepository();
+        java.util.Set<Long> seen = new java.util.HashSet<>();
+        java.util.List<com.mossman.domain.entities.TicketRelationship> affectedRels = new java.util.ArrayList<>();
+        for (var ticket : allTickets) {
+            for (var rel : relRepo.findByTicketId(ticket.getId())) {
+                if (rel.type().equalsIgnoreCase(target.name()) && seen.add(rel.id())) {
+                    affectedRels.add(rel);
+                }
+            }
+        }
+
+        final String finalReplacementName = replacementName;
+        com.mossman.domain.entities.RelationshipType replacementType = null;
+        if (finalReplacementName != null) {
+            replacementType = newLists.stream().filter(t -> t.name().equalsIgnoreCase(finalReplacementName)).findFirst().orElse(null);
+            if (replacementType == null) {
+                source.sendMessage(Text.literal("Replacement relationship type not found: " + replacementName).formatted(Formatting.RED));
+                return 0;
+            }
         }
 
         try {
             UUID rId = source.getPlayer() != null ? source.getPlayer().getUuid() : UUID.randomUUID();
+            if (replacementType != null) {
+                for (var rel : affectedRels) {
+                    relRepo.save(new com.mossman.domain.entities.TicketRelationship(rel.id(), replacementType.name(), rel.sourceTicketId(), rel.targetTicketId()));
+                }
+            } else {
+                for (var rel : affectedRels) {
+                    relRepo.delete(rel.id());
+                }
+            }
             MossManMod.getUpdateProjectRelationshipTypesUseCase().execute(project.getId(), rId, newLists);
-            source.sendMessage(Text.literal("Removed relationship type " + name + "; replacement: " + replacementType.name()).formatted(Formatting.YELLOW));
+            String msg = "Removed relationship type " + name;
+            if (!affectedRels.isEmpty()) {
+                msg += replacementType != null
+                        ? "; migrated " + affectedRels.size() + " relationship(s) to " + replacementType.name()
+                        : "; deleted " + affectedRels.size() + " relationship(s)";
+            }
+            source.sendMessage(Text.literal(msg).formatted(Formatting.YELLOW));
         } catch (IllegalArgumentException e) {
             source.sendMessage(Text.literal(e.getMessage()).formatted(Formatting.RED));
         }

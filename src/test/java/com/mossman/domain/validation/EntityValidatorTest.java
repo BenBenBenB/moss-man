@@ -189,6 +189,20 @@ class EntityValidatorTest {
         assertThrows(IllegalArgumentException.class, () -> EntityValidator.requireValidShortName("status name", "§bad"));
     }
 
+    @Test
+    void shortName_withSpace_throws() {
+        assertThrows(IllegalArgumentException.class, () -> EntityValidator.requireValidShortName("type name", "blocks forever"));
+        assertThrows(IllegalArgumentException.class, () -> EntityValidator.requireValidShortName("type name", " leading"));
+        assertThrows(IllegalArgumentException.class, () -> EntityValidator.requireValidShortName("type name", "trailing "));
+    }
+
+    @Test
+    void shortName_unicodeNoWhitespace_valid() {
+        assertDoesNotThrow(() -> EntityValidator.requireValidShortName("type name", "BLOCKS"));
+        assertDoesNotThrow(() -> EntityValidator.requireValidShortName("type name", "blocks_forever"));
+        assertDoesNotThrow(() -> EntityValidator.requireValidShortName("type name", "関連")); // Japanese, no spaces
+    }
+
     // ── requireValidRelTypeDescription ───────────────────────────────────────
 
     @Test

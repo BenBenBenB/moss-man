@@ -17,7 +17,10 @@ import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
+import com.mossman.domain.entities.TicketRelationship;
+
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -67,6 +70,20 @@ public class TicketCommand {
                         .then(CommandManager.argument("key", StringArgumentType.word())
                                 .suggests(SuggestionHelper::suggestTicketKeys)
                                 .executes(TicketCommand::unwatchTicket)))
+                .then(CommandManager.literal("link")
+                        .then(CommandManager.argument("sourceKey", StringArgumentType.word())
+                                .suggests(SuggestionHelper::suggestTicketKeys)
+                                .then(CommandManager.argument("type", StringArgumentType.word())
+                                        .then(CommandManager.argument("targetKey", StringArgumentType.word())
+                                                .suggests(SuggestionHelper::suggestTicketKeys)
+                                                .executes(TicketCommand::linkTickets)))))
+                .then(CommandManager.literal("unlink")
+                        .then(CommandManager.argument("sourceKey", StringArgumentType.word())
+                                .suggests(SuggestionHelper::suggestTicketKeys)
+                                .then(CommandManager.argument("type", StringArgumentType.word())
+                                        .then(CommandManager.argument("targetKey", StringArgumentType.word())
+                                                .suggests(SuggestionHelper::suggestTicketKeys)
+                                                .executes(TicketCommand::unlinkTickets)))))
                 .build();
 
         rootNode.addChild(ticketNode);
@@ -288,6 +305,49 @@ public class TicketCommand {
             }
         }
 
+        // Relationships — only show section if project has relationship types defined or ticket has existing relationships
+        List<TicketRelationship> rels = com.mossman.MossManMod.getTicketRelationshipRepository().findByTicketId(ticket.getId());
+        boolean hasRelTypes = !project.getRelationshipTypes().isEmpty();
+        if (!rels.isEmpty() || hasRelTypes) {
+            MutableText relsHeader = Text.literal("Relationships: ").formatted(Formatting.GRAY);
+            if (rels.isEmpty()) {
+                relsHeader.append(Text.literal("None").formatted(Formatting.GRAY));
+            }
+            source.sendMessage(relsHeader);
+            for (TicketRelationship rel : rels) {
+                var relTypeOpt = project.getRelationshipTypes().stream()
+                        .filter(rt -> rt.name().equalsIgnoreCase(rel.type()))
+                        .findFirst();
+                if (relTypeOpt.isEmpty()) continue;
+                var relType = relTypeOpt.get();
+
+                boolean isSource = rel.sourceTicketId() == ticket.getId();
+                long partnerTicketId = isSource ? rel.targetTicketId() : rel.sourceTicketId();
+                String direction = isSource ? relType.sourceToTargetDescription() : relType.targetToSourceDescription();
+                String arrow = isSource ? "→" : "←";
+
+                var partnerTicketOpt = com.mossman.MossManMod.getTicketRepository().findById(partnerTicketId);
+                if (partnerTicketOpt.isEmpty()) continue;
+                var partnerTicket = partnerTicketOpt.get();
+                String partnerKey = partnerTicket.getUserFriendlyKey(prefix);
+
+                String sourceKey = isSource ? key : partnerKey;
+                String targetKey = isSource ? partnerKey : key;
+                String unlinkCmd = "/mossman ticket unlink " + sourceKey + " " + rel.type() + " " + targetKey;
+                String viewPartnerCmd = "/mossman ticket view " + partnerKey;
+
+                MutableText relLine = Text.literal("  ").formatted(Formatting.WHITE);
+                relLine.append(TuiHelper.createRunLink("[✗]", unlinkCmd, "Unlink", Formatting.RED));
+                relLine.append(Text.literal(" " + direction + " " + arrow + " ").formatted(Formatting.GRAY));
+                relLine.append(TuiHelper.createRunLink(partnerKey, viewPartnerCmd, "View " + partnerKey, Formatting.GREEN));
+                relLine.append(Text.literal(": " + partnerTicket.getTitle()).formatted(Formatting.WHITE));
+                source.sendMessage(relLine);
+            }
+            if (isEditor && hasRelTypes) {
+                source.sendMessage(TuiHelper.createSuggestLink("[+ Link]", "/mossman ticket link " + key + " ", "Link to another ticket", Formatting.GOLD));
+            }
+        }
+
         if (com.mossman.domain.auth.PermissionChecker.hasPermission(project, source, com.mossman.domain.entities.Permission.EDITOR)) {
             MutableText editBtn = TuiHelper.createSuggestLink("[Edit] ", "/mossman ticket update " + key + " ", "Edit ticket fields", Formatting.YELLOW);
             source.sendMessage(editBtn);
@@ -450,6 +510,79 @@ public class TicketCommand {
             UUID requesterId = source.getPlayer() != null ? source.getPlayer().getUuid() : UUID.randomUUID();
             com.mossman.MossManMod.getUnobserveTicketUseCase().execute(ticket.getId(), requesterId);
             source.sendMessage(Text.literal("Stopped watching " + key).formatted(Formatting.GREEN));
+            return 1;
+        } catch (Exception e) {
+            source.sendMessage(TuiHelper.errorText(e));
+            return 0;
+        }
+    }
+
+    private static int linkTickets(CommandContext<ServerCommandSource> context) {
+        ServerCommandSource source = context.getSource();
+        String sourceKey = StringArgumentType.getString(context, "sourceKey");
+        String type = StringArgumentType.getString(context, "type");
+        String targetKey = StringArgumentType.getString(context, "targetKey");
+        try {
+            String sourcePrefix = sourceKey.split("-")[0];
+            int sourceNumber = Integer.parseInt(sourceKey.split("-")[1]);
+            var sourceProject = com.mossman.MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream()
+                    .filter(p -> p.getTicketPrefix().equalsIgnoreCase(sourcePrefix)).findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Project not found for: " + sourceKey));
+            var sourceTicket = com.mossman.MossManMod.getTicketRepository().findByProjectId(sourceProject.getId(), 0, Integer.MAX_VALUE).stream()
+                    .filter(t -> t.getTicketNumber() == sourceNumber).findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Ticket not found: " + sourceKey));
+
+            String targetPrefix = targetKey.split("-")[0];
+            int targetNumber = Integer.parseInt(targetKey.split("-")[1]);
+            var targetProject = com.mossman.MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream()
+                    .filter(p -> p.getTicketPrefix().equalsIgnoreCase(targetPrefix)).findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Project not found for: " + targetKey));
+            var targetTicket = com.mossman.MossManMod.getTicketRepository().findByProjectId(targetProject.getId(), 0, Integer.MAX_VALUE).stream()
+                    .filter(t -> t.getTicketNumber() == targetNumber).findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Ticket not found: " + targetKey));
+
+            UUID requesterId = source.getPlayer() != null ? source.getPlayer().getUuid() : UUID.randomUUID();
+            var rel = com.mossman.MossManMod.getLinkTicketsUseCase().execute(sourceTicket.getId(), targetTicket.getId(), type, requesterId);
+
+            var relTypeOpt = sourceProject.getRelationshipTypes().stream()
+                    .filter(rt -> rt.name().equalsIgnoreCase(type)).findFirst();
+            String desc = relTypeOpt.map(rt -> rt.sourceToTargetDescription()).orElse(type);
+            source.sendMessage(Text.literal("Linked " + sourceKey + " " + desc + " " + targetKey).formatted(Formatting.GREEN));
+            return 1;
+        } catch (Exception e) {
+            source.sendMessage(TuiHelper.errorText(e));
+            return 0;
+        }
+    }
+
+    private static int unlinkTickets(CommandContext<ServerCommandSource> context) {
+        ServerCommandSource source = context.getSource();
+        String sourceKey = StringArgumentType.getString(context, "sourceKey");
+        String type = StringArgumentType.getString(context, "type");
+        String targetKey = StringArgumentType.getString(context, "targetKey");
+        try {
+            String sourcePrefix = sourceKey.split("-")[0];
+            int sourceNumber = Integer.parseInt(sourceKey.split("-")[1]);
+            var sourceProject = com.mossman.MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream()
+                    .filter(p -> p.getTicketPrefix().equalsIgnoreCase(sourcePrefix)).findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Project not found for: " + sourceKey));
+            var sourceTicket = com.mossman.MossManMod.getTicketRepository().findByProjectId(sourceProject.getId(), 0, Integer.MAX_VALUE).stream()
+                    .filter(t -> t.getTicketNumber() == sourceNumber).findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Ticket not found: " + sourceKey));
+
+            String targetPrefix = targetKey.split("-")[0];
+            int targetNumber = Integer.parseInt(targetKey.split("-")[1]);
+            var targetProject = com.mossman.MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream()
+                    .filter(p -> p.getTicketPrefix().equalsIgnoreCase(targetPrefix)).findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Project not found for: " + targetKey));
+            var targetTicket = com.mossman.MossManMod.getTicketRepository().findByProjectId(targetProject.getId(), 0, Integer.MAX_VALUE).stream()
+                    .filter(t -> t.getTicketNumber() == targetNumber).findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Ticket not found: " + targetKey));
+
+            UUID requesterId = source.getPlayer() != null ? source.getPlayer().getUuid() : UUID.randomUUID();
+            com.mossman.MossManMod.getUnlinkTicketsUseCase().execute(sourceTicket.getId(), targetTicket.getId(), type, requesterId);
+
+            source.sendMessage(Text.literal("Unlinked " + sourceKey + " from " + targetKey).formatted(Formatting.YELLOW));
             return 1;
         } catch (Exception e) {
             source.sendMessage(TuiHelper.errorText(e));

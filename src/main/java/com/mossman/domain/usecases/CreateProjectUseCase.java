@@ -31,9 +31,9 @@ public class CreateProjectUseCase {
     );
 
     private static final List<RelationshipType> DEFAULT_RELATIONSHIP_TYPES = List.of(
-            new RelationshipType("blocks", "blocks", "is blocked by", ""),
-            new RelationshipType("duplicates", "duplicates", "is duplicated by", ""),
-            new RelationshipType("relates to", "relates to", "relates to", "")
+            new RelationshipType("BLOCKS", "blocks", "is blocked by", ""),
+            new RelationshipType("DUPLICATES", "duplicates", "is duplicated by", ""),
+            new RelationshipType("RELATES_TO", "relates to", "relates to", "")
     );
 
     private final ProjectRepository projectRepository;

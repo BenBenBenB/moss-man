@@ -9,6 +9,7 @@ import com.mossman.infrastructure.persistence.models.MailDb;
 import com.mossman.infrastructure.persistence.models.MemberDb;
 import com.mossman.infrastructure.persistence.models.ProjectDb;
 import com.mossman.infrastructure.persistence.models.TicketDb;
+import com.mossman.infrastructure.persistence.models.TicketRelationshipDb;
 
 import java.sql.SQLException;
 
@@ -18,6 +19,7 @@ public class DatabaseManager {
     private final Dao<TicketDb, Long> ticketDao;
     private final Dao<MemberDb, Long> memberDao;
     private final Dao<MailDb, Long> mailDao;
+    private final Dao<TicketRelationshipDb, Long> ticketRelationshipDao;
 
     public DatabaseManager(String databaseUrl) throws SQLException {
         this.connectionSource = new JdbcConnectionSource(databaseUrl);
@@ -26,6 +28,7 @@ public class DatabaseManager {
         this.ticketDao = DaoManager.createDao(connectionSource, TicketDb.class);
         this.memberDao = DaoManager.createDao(connectionSource, MemberDb.class);
         this.mailDao = DaoManager.createDao(connectionSource, MailDb.class);
+        this.ticketRelationshipDao = DaoManager.createDao(connectionSource, TicketRelationshipDb.class);
     }
 
     private void createTables() throws SQLException {
@@ -33,10 +36,12 @@ public class DatabaseManager {
         TableUtils.createTableIfNotExists(connectionSource, TicketDb.class);
         TableUtils.createTableIfNotExists(connectionSource, MemberDb.class);
         TableUtils.createTableIfNotExists(connectionSource, MailDb.class);
+        TableUtils.createTableIfNotExists(connectionSource, TicketRelationshipDb.class);
     }
 
     /** Drops and recreates all tables — for admin use only. */
     public void dropAndRecreateAllTables() throws SQLException {
+        TableUtils.dropTable(connectionSource, TicketRelationshipDb.class, true);
         TableUtils.dropTable(connectionSource, MailDb.class, true);
         TableUtils.dropTable(connectionSource, MemberDb.class, true);
         TableUtils.dropTable(connectionSource, TicketDb.class, true);
@@ -48,6 +53,7 @@ public class DatabaseManager {
     public Dao<TicketDb, Long> getTicketDao() { return ticketDao; }
     public Dao<MemberDb, Long> getMemberDao() { return memberDao; }
     public Dao<MailDb, Long> getMailDao() { return mailDao; }
+    public Dao<TicketRelationshipDb, Long> getTicketRelationshipDao() { return ticketRelationshipDao; }
     public ConnectionSource getConnectionSource() { return connectionSource; }
 
     public void close() throws Exception {

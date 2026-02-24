@@ -91,7 +91,7 @@ public final class EntityValidator {
         requireSafeUnicode("description", value);
     }
 
-    /** Validates a short name (status, ticket type, relationship type name): required, max 32 chars, safe unicode. */
+    /** Validates a short name (status, ticket type, relationship type name): required, max 32 chars, safe unicode, no whitespace. */
     public static void requireValidShortName(String fieldName, String value) {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(fieldName + " must not be blank.");
@@ -100,6 +100,13 @@ public final class EntityValidator {
             throw new IllegalArgumentException(fieldName + " must not exceed 32 characters.");
         }
         requireSafeUnicode(fieldName, value);
+        for (int i = 0; i < value.length(); ) {
+            int cp = value.codePointAt(i);
+            if (Character.isWhitespace(cp)) {
+                throw new IllegalArgumentException(fieldName + " must not contain whitespace.");
+            }
+            i += Character.charCount(cp);
+        }
     }
 
     /** Validates a relationship type description field: optional (blank/null ok), max 64 chars, safe unicode. */

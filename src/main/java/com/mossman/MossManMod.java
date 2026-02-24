@@ -24,6 +24,7 @@ import com.mossman.infrastructure.persistence.OrmLiteMailRepository;
 import com.mossman.infrastructure.persistence.OrmLiteProjectRepository;
 import com.mossman.infrastructure.persistence.OrmLiteMemberRepository;
 import com.mossman.infrastructure.persistence.OrmLiteTicketRepository;
+import com.mossman.infrastructure.persistence.OrmLiteTicketRelationshipRepository;
 import com.mossman.domain.usecases.*;
 
 import java.io.File;
@@ -55,11 +56,14 @@ public class MossManMod implements ModInitializer {
     private static UnobserveTicketUseCase unobserveTicketUseCase;
     private static SendMailUseCase sendMailUseCase;
     private static MarkMailReadUseCase markMailReadUseCase;
+    private static LinkTicketsUseCase linkTicketsUseCase;
+    private static UnlinkTicketsUseCase unlinkTicketsUseCase;
 
     private static OrmLiteProjectRepository projectRepository;
     private static OrmLiteTicketRepository ticketRepository;
     private static OrmLiteMemberRepository memberRepository;
     private static OrmLiteMailRepository mailRepository;
+    private static OrmLiteTicketRelationshipRepository ticketRelationshipRepository;
 
     @Override
     public void onInitialize() {
@@ -77,6 +81,7 @@ public class MossManMod implements ModInitializer {
             projectRepository = new OrmLiteProjectRepository(databaseManager.getProjectDao(), memberRepository);
             ticketRepository = new OrmLiteTicketRepository(databaseManager.getTicketDao());
             mailRepository = new OrmLiteMailRepository(databaseManager.getMailDao());
+            ticketRelationshipRepository = new OrmLiteTicketRelationshipRepository(databaseManager.getTicketRelationshipDao());
 
             createProjectUseCase = new CreateProjectUseCase(projectRepository, eventBus);
             createTicketUseCase = new CreateTicketUseCase(ticketRepository, projectRepository, eventBus);
@@ -95,6 +100,8 @@ public class MossManMod implements ModInitializer {
             unobserveTicketUseCase = new UnobserveTicketUseCase(ticketRepository);
             sendMailUseCase = new SendMailUseCase(mailRepository);
             markMailReadUseCase = new MarkMailReadUseCase(mailRepository);
+            linkTicketsUseCase = new LinkTicketsUseCase(ticketRelationshipRepository, ticketRepository, projectRepository);
+            unlinkTicketsUseCase = new UnlinkTicketsUseCase(ticketRelationshipRepository, ticketRepository, projectRepository);
 
             // Notify new assignee via mail
             eventBus.subscribe(TicketAssignedEvent.class, event -> {
@@ -189,9 +196,12 @@ public class MossManMod implements ModInitializer {
     public static UnobserveTicketUseCase getUnobserveTicketUseCase() { return unobserveTicketUseCase; }
     public static SendMailUseCase getSendMailUseCase() { return sendMailUseCase; }
     public static MarkMailReadUseCase getMarkMailReadUseCase() { return markMailReadUseCase; }
+    public static LinkTicketsUseCase getLinkTicketsUseCase() { return linkTicketsUseCase; }
+    public static UnlinkTicketsUseCase getUnlinkTicketsUseCase() { return unlinkTicketsUseCase; }
     public static OrmLiteProjectRepository getProjectRepository() { return projectRepository; }
     public static OrmLiteMemberRepository getMemberRepository() { return memberRepository; }
     public static OrmLiteTicketRepository getTicketRepository() { return ticketRepository; }
     public static OrmLiteMailRepository getMailRepository() { return mailRepository; }
+    public static OrmLiteTicketRelationshipRepository getTicketRelationshipRepository() { return ticketRelationshipRepository; }
     public static DatabaseManager getDatabaseManager() { return databaseManager; }
 }
