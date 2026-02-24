@@ -105,6 +105,29 @@ public final class SuggestionHelper {
     }
 
     /**
+     * Returns a provider that suggests relationship type names for the project that
+     * owns the ticket identified by the already-parsed {@code keyArgName} argument
+     * (e.g. "MOSS-1"). Useful for {@code ticket link} and {@code ticket unlink}.
+     */
+    public static SuggestionProvider<ServerCommandSource> suggestRelationshipTypeNamesForKey(String keyArgName) {
+        return (ctx, builder) -> {
+            try {
+                String key = StringArgumentType.getString(ctx, keyArgName);
+                String[] parts = key.split("-");
+                if (parts.length < 2) return builder.buildFuture();
+                String prefix = parts[0];
+                var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream()
+                        .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix))
+                        .findFirst().orElse(null);
+                if (project == null) return builder.buildFuture();
+                return suggest(builder, project.getRelationshipTypes().stream().map(r -> r.name()));
+            } catch (Exception e) {
+                return builder.buildFuture();
+            }
+        };
+    }
+
+    /**
      * Returns a provider that suggests the current assignee names for a ticket,
      * identified by the already-parsed {@code keyArgName} argument (e.g. "MOSS-1").
      * Useful for the {@code ticket unassign} command.

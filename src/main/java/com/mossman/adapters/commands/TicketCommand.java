@@ -74,6 +74,7 @@ public class TicketCommand {
                         .then(CommandManager.argument("sourceKey", StringArgumentType.word())
                                 .suggests(SuggestionHelper::suggestTicketKeys)
                                 .then(CommandManager.argument("type", StringArgumentType.word())
+                                        .suggests(SuggestionHelper.suggestRelationshipTypeNamesForKey("sourceKey"))
                                         .then(CommandManager.argument("targetKey", StringArgumentType.word())
                                                 .suggests(SuggestionHelper::suggestTicketKeys)
                                                 .executes(TicketCommand::linkTickets)))))
@@ -81,6 +82,7 @@ public class TicketCommand {
                         .then(CommandManager.argument("sourceKey", StringArgumentType.word())
                                 .suggests(SuggestionHelper::suggestTicketKeys)
                                 .then(CommandManager.argument("type", StringArgumentType.word())
+                                        .suggests(SuggestionHelper.suggestRelationshipTypeNamesForKey("sourceKey"))
                                         .then(CommandManager.argument("targetKey", StringArgumentType.word())
                                                 .suggests(SuggestionHelper::suggestTicketKeys)
                                                 .executes(TicketCommand::unlinkTickets)))))
@@ -338,7 +340,7 @@ public class TicketCommand {
 
                 MutableText relLine = Text.literal("  ").formatted(Formatting.WHITE);
                 relLine.append(TuiHelper.createRunLink("[✗]", unlinkCmd, "Unlink", Formatting.RED));
-                relLine.append(Text.literal(" " + direction + " " + arrow + " ").formatted(Formatting.GRAY));
+                relLine.append(TuiHelper.applyColor(Text.literal(" " + direction + " " + arrow + " ").formatted(Formatting.GRAY), relType.textColor()));
                 relLine.append(TuiHelper.createRunLink(partnerKey, viewPartnerCmd, "View " + partnerKey, Formatting.GREEN));
                 relLine.append(Text.literal(": " + partnerTicket.getTitle()).formatted(Formatting.WHITE));
                 source.sendMessage(relLine);

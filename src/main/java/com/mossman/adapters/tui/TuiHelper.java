@@ -46,6 +46,24 @@ public class TuiHelper {
     }
 
     /**
+     * Applies a textColor string (named Minecraft color or {@code #RRGGBB} hex) to
+     * {@code text} by overriding its color style. Returns {@code text} unchanged if
+     * {@code textColor} is null, blank, or unrecognised.
+     */
+    public static MutableText applyColor(MutableText text, String textColor) {
+        if (textColor == null || textColor.isBlank()) return text;
+        Formatting fmt = Formatting.byName(textColor.toLowerCase());
+        if (fmt != null && fmt.isColor()) return text.styled(s -> s.withColor(fmt));
+        if (textColor.startsWith("#") && textColor.length() == 7) {
+            try {
+                int rgb = Integer.parseInt(textColor.substring(1), 16);
+                return text.styled(s -> s.withColor(rgb));
+            } catch (NumberFormatException ignored) {}
+        }
+        return text;
+    }
+
+    /**
      * Returns a red error Text for display to the player.
      * <p>
      * {@link IllegalArgumentException} and {@link SecurityException} are considered user-facing
