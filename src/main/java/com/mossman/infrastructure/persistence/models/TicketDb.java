@@ -49,6 +49,10 @@ public class TicketDb {
     @DatabaseField
     private Long sprintId;
 
+    /** Pipe-separated label strings; null or blank means no labels. */
+    @DatabaseField
+    private String labels;
+
     /** Comma-separated UUID strings; null or blank means no assignees. */
     @DatabaseField
     private String assignees;
@@ -72,6 +76,8 @@ public class TicketDb {
         this.createdAt = ticket.getCreatedAt();
         this.updatedAt = ticket.getUpdatedAt();
         this.sprintId = ticket.getSprintId();
+        this.labels = ticket.getLabels().isEmpty() ? null :
+                String.join("|", ticket.getLabels());
         this.assignees = ticket.getAssignees().isEmpty() ? null :
                 ticket.getAssignees().stream().map(UUID::toString).collect(Collectors.joining(","));
         this.observers = ticket.getObservers().isEmpty() ? null :
@@ -79,6 +85,11 @@ public class TicketDb {
     }
 
     public Ticket toDomain() {
+        List<String> parsedLabels = (labels == null || labels.isBlank())
+                ? Collections.emptyList()
+                : Arrays.stream(labels.split("\\|"))
+                        .filter(s -> !s.isBlank())
+                        .collect(Collectors.toList());
         List<UUID> parsedAssignees = (assignees == null || assignees.isBlank())
                 ? Collections.emptyList()
                 : Arrays.stream(assignees.split(","))
@@ -92,7 +103,7 @@ public class TicketDb {
                         .map(UUID::fromString)
                         .collect(Collectors.toList());
         return new Ticket(id, projectId, ticketNumber, title, description, type, status, priority,
-                parsedAssignees, parsedObservers, creator, Collections.emptyList(),
+                parsedAssignees, parsedObservers, creator, parsedLabels,
                 createdAt, updatedAt, sprintId);
     }
 
@@ -121,6 +132,8 @@ public class TicketDb {
     public void setUpdatedAt(long updatedAt) { this.updatedAt = updatedAt; }
     public Long getSprintId() { return sprintId; }
     public void setSprintId(Long sprintId) { this.sprintId = sprintId; }
+    public String getLabels() { return labels; }
+    public void setLabels(String labels) { this.labels = labels; }
     public String getAssignees() { return assignees; }
     public void setAssignees(String assignees) { this.assignees = assignees; }
     public String getObservers() { return observers; }

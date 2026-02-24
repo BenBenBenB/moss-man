@@ -60,6 +60,19 @@ public class OrmLiteTicketRepository implements TicketRepository {
     @Override
     public List<Ticket> findByProjectId(long projectId, TicketFilter filter, int offset, int limit) {
         try {
+            if (filter.labels().isPresent()) {
+                // Label filter must be applied in memory; fetch all SQL matches first
+                QueryBuilder<TicketDb, Long> qb = ticketDao.queryBuilder();
+                Where<TicketDb, Long> where = qb.where().eq("projectId", projectId);
+                applyFilter(where, filter);
+                List<Ticket> all = qb.query().stream()
+                        .map(TicketDb::toDomain)
+                        .filter(t -> matchesAnyLabel(t, filter.labels().get()))
+                        .collect(Collectors.toList());
+                int from = Math.min(offset, all.size());
+                int to = Math.min(offset + limit, all.size());
+                return all.subList(from, to);
+            }
             QueryBuilder<TicketDb, Long> qb = ticketDao.queryBuilder();
             qb.offset((long) offset).limit((long) limit);
             Where<TicketDb, Long> where = qb.where().eq("projectId", projectId);
@@ -84,6 +97,15 @@ public class OrmLiteTicketRepository implements TicketRepository {
     @Override
     public long countByProjectId(long projectId, TicketFilter filter) {
         try {
+            if (filter.labels().isPresent()) {
+                QueryBuilder<TicketDb, Long> qb = ticketDao.queryBuilder();
+                Where<TicketDb, Long> where = qb.where().eq("projectId", projectId);
+                applyFilter(where, filter);
+                return qb.query().stream()
+                        .map(TicketDb::toDomain)
+                        .filter(t -> matchesAnyLabel(t, filter.labels().get()))
+                        .count();
+            }
             QueryBuilder<TicketDb, Long> qb = ticketDao.queryBuilder();
             Where<TicketDb, Long> where = qb.where().eq("projectId", projectId);
             applyFilter(where, filter);
@@ -91,6 +113,16 @@ public class OrmLiteTicketRepository implements TicketRepository {
         } catch (SQLException e) {
             throw new RuntimeException("Failed to count filtered tickets", e);
         }
+    }
+
+    /** Returns true if the ticket has at least one label matching any entry in filterLabels (case-insensitive). */
+    private static boolean matchesAnyLabel(Ticket ticket, List<String> filterLabels) {
+        for (String filterLabel : filterLabels) {
+            for (String ticketLabel : ticket.getLabels()) {
+                if (ticketLabel.equalsIgnoreCase(filterLabel)) return true;
+            }
+        }
+        return false;
     }
 
     private void applyFilter(Where<TicketDb, Long> where, TicketFilter filter) throws SQLException {

@@ -20,10 +20,12 @@ import net.minecraft.util.Formatting;
 import com.mossman.domain.entities.TicketRelationship;
 
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 public class TicketCommand {
 
@@ -104,13 +106,26 @@ public class TicketCommand {
         int page = getPage(context);
         NbtCompound nbt = NbtCompoundArgumentType.getNbtCompound(context, "filter");
         Map<String, String> filterMap = new HashMap<>();
-        // Supported SNBT keys: status, type, priority, title
-        // Example: {status:"OPEN",priority:"HIGH"}
+        // Supported SNBT string keys: status, type, priority, title
+        // Supported SNBT list key: label (e.g. {label:["bug","feature"]})
         for (String key : nbt.getKeys()) {
-            // NbtCompound.getString returns Optional<String> in 1.21.11; use orElse to unwrap
             nbt.getString(key).ifPresent(value -> filterMap.put(key.toLowerCase(), value));
         }
-        return doListTickets(context, TicketFilter.of(filterMap), page);
+        List<String> filterLabels = extractStringList(nbt, "label");
+        return doListTickets(context, TicketFilter.of(filterMap, filterLabels), page);
+    }
+
+    /** Extracts a list of strings from an NBT list element in the given compound. Returns empty list if absent or wrong type. */
+    private static List<String> extractStringList(NbtCompound nbt, String key) {
+        net.minecraft.nbt.NbtElement element = nbt.get(key);
+        if (!(element instanceof net.minecraft.nbt.NbtList list)) return List.of();
+        List<String> result = new ArrayList<>();
+        for (net.minecraft.nbt.NbtElement e : list) {
+            if (e.getType() == net.minecraft.nbt.NbtElement.STRING_TYPE) {
+                e.asString().filter(s -> !s.isBlank()).ifPresent(result::add);
+            }
+        }
+        return result;
     }
 
     private static int getPage(CommandContext<ServerCommandSource> context) {
@@ -262,6 +277,22 @@ public class TicketCommand {
         }
         statusLine.append(Text.literal("Status: " + ticket.getStatus()).formatted(Formatting.YELLOW));
         source.sendMessage(statusLine);
+
+        // Labels
+        String labelsSnbt = "{labels:[" + ticket.getLabels().stream()
+                .map(l -> "\"" + l + "\"").collect(Collectors.joining(",")) + "]}";
+        MutableText labelsLine = Text.empty();
+        if (isEditor) {
+            labelsLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman ticket update " + key + " " + labelsSnbt,
+                    TuiHelper.translatable("mossman.tui.ticket.edit_field_hover", "Labels"), Formatting.GRAY));
+        }
+        if (ticket.getLabels().isEmpty()) {
+            labelsLine.append(Text.literal("Labels: None").formatted(Formatting.GRAY));
+        } else {
+            labelsLine.append(Text.literal("Labels: ").formatted(Formatting.GRAY));
+            labelsLine.append(Text.literal(String.join(", ", ticket.getLabels())).formatted(Formatting.YELLOW));
+        }
+        source.sendMessage(labelsLine);
 
         // Description
         MutableText descLine = Text.empty();
@@ -654,6 +685,11 @@ public class TicketCommand {
 
             java.util.UUID rId = source.getPlayer() != null ? source.getPlayer().getUuid() : java.util.UUID.randomUUID();
             var patch = NbtPatchParser.toMap(nbt);
+            // Handle labels list separately (NbtPatchParser only handles string/numeric leaves)
+            List<String> patchLabels = extractStringList(nbt, "labels");
+            if (nbt.get("labels") != null) {
+                patch.put("labels", patchLabels.stream().collect(Collectors.joining("|")));
+            }
             com.mossman.MossManMod.getUpdateTicketUseCase().execute(ticket.getId(), rId, patch);
             
             source.sendMessage(Text.literal("Updated ticket " + key).formatted(Formatting.GREEN));

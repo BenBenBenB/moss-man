@@ -9,7 +9,11 @@ import com.mossman.domain.repositories.ProjectRepository;
 import com.mossman.domain.validation.EntityValidator;
 
 import java.time.Instant;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class UpdateTicketUseCase {
     private final TicketRepository ticketRepository;
@@ -41,6 +45,9 @@ public class UpdateTicketUseCase {
 
         if (patch.containsKey("title"))       EntityValidator.requireValidTicketTitle(patch.get("title"));
         if (patch.containsKey("description")) EntityValidator.requireValidTicketDescription(patch.get("description"));
+        if (patch.containsKey("labels")) {
+            parseLabelsFromPatch(patch.get("labels")).forEach(EntityValidator::requireValidLabel);
+        }
 
         String title       = patch.getOrDefault("title",       current.getTitle());
         String description = patch.getOrDefault("description", current.getDescription() != null ? current.getDescription() : "");
@@ -49,6 +56,9 @@ public class UpdateTicketUseCase {
         Priority priority  = patch.containsKey("priority")
                 ? Priority.valueOf(patch.get("priority").toUpperCase())
                 : current.getPriority();
+        List<String> labels = patch.containsKey("labels")
+                ? parseLabelsFromPatch(patch.get("labels"))
+                : current.getLabels();
 
         Ticket updated = new Ticket(
                 current.getId(),
@@ -62,7 +72,7 @@ public class UpdateTicketUseCase {
                 current.getAssignees(),
                 current.getObservers(),
                 current.getCreator(),
-                current.getLabels(),
+                labels,
                 current.getCreatedAt(),
                 System.currentTimeMillis(),
                 current.getSprintId()
@@ -71,5 +81,17 @@ public class UpdateTicketUseCase {
         Ticket saved = ticketRepository.save(updated);
         eventBus.publish(new TicketUpdatedEvent(saved, requesterId, Instant.now()));
         return saved;
+    }
+
+    /**
+     * Parses a {@code |}-delimited labels string (as encoded by the command layer) into a list.
+     * An empty or blank value yields an empty list (clearing all labels).
+     */
+    private static List<String> parseLabelsFromPatch(String encoded) {
+        if (encoded == null || encoded.isBlank()) return Collections.emptyList();
+        return Arrays.stream(encoded.split("\\|"))
+                .map(String::strip)
+                .filter(s -> !s.isBlank())
+                .collect(Collectors.toList());
     }
 }

@@ -109,6 +109,20 @@ public final class EntityValidator {
         }
     }
 
+    /** Validates a ticket label: required, max 64 chars, safe unicode, no pipe character (used as storage delimiter). */
+    public static void requireValidLabel(String value) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException("Label must not be blank.");
+        }
+        if (value.length() > 64) {
+            throw new IllegalArgumentException("Label must not exceed 64 characters.");
+        }
+        requireSafeUnicode("label", value);
+        if (value.contains("|")) {
+            throw new IllegalArgumentException("Label must not contain the '|' character.");
+        }
+    }
+
     /** Validates a relationship type description field: optional (blank/null ok), max 64 chars, safe unicode. */
     public static void requireValidRelTypeDescription(String fieldName, String value) {
         if (value == null || value.isBlank()) return;
