@@ -8,6 +8,9 @@ import com.mossman.domain.repositories.TicketRepository;
 import com.mossman.domain.entities.Permission;
 import com.mossman.domain.validation.EntityValidator;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 
 public class CreateTicketUseCase {
     private final TicketRepository ticketRepository;
@@ -32,7 +35,19 @@ public class CreateTicketUseCase {
         EntityValidator.requireValidTicketTitle(ticket.getTitle());
         EntityValidator.requireValidTicketDescription(ticket.getDescription());
 
-        Ticket savedTicket = ticketRepository.save(ticket);
+        List<UUID> initialObservers = new ArrayList<>(ticket.getObservers());
+        if (!initialObservers.contains(ticket.getCreator())) {
+            initialObservers.add(ticket.getCreator());
+        }
+        Ticket ticketWithObserver = new Ticket(
+                ticket.getId(), ticket.getProjectId(), ticket.getTicketNumber(),
+                ticket.getTitle(), ticket.getDescription(), ticket.getType(),
+                ticket.getStatus(), ticket.getPriority(), ticket.getAssignees(),
+                initialObservers, ticket.getCreator(), ticket.getLabels(),
+                ticket.getCreatedAt(), ticket.getUpdatedAt(), ticket.getSprintId()
+        );
+
+        Ticket savedTicket = ticketRepository.save(ticketWithObserver);
         eventBus.publish(new TicketCreatedEvent(savedTicket, Instant.now()));
         return savedTicket;
     }

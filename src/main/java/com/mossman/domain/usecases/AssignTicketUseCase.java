@@ -52,11 +52,16 @@ public class AssignTicketUseCase {
         List<UUID> newAssignees = new ArrayList<>(current.getAssignees());
         newAssignees.add(assigneeId);
 
+        List<UUID> newObservers = new ArrayList<>(current.getObservers());
+        if (!newObservers.contains(assigneeId)) {
+            newObservers.add(assigneeId);
+        }
+
         Ticket updated = new Ticket(
                 current.getId(), current.getProjectId(), current.getTicketNumber(),
                 current.getTitle(), current.getDescription(), current.getType(),
                 current.getStatus(), current.getPriority(),
-                newAssignees, current.getObservers(),
+                newAssignees, newObservers,
                 current.getCreator(), current.getLabels(),
                 current.getCreatedAt(), System.currentTimeMillis(), current.getSprintId()
         );

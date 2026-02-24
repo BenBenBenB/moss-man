@@ -53,6 +53,10 @@ public class TicketDb {
     @DatabaseField
     private String assignees;
 
+    /** Comma-separated UUID strings; null or blank means no observers. */
+    @DatabaseField
+    private String observers;
+
     public TicketDb() {}
 
     public TicketDb(Ticket ticket) {
@@ -70,6 +74,8 @@ public class TicketDb {
         this.sprintId = ticket.getSprintId();
         this.assignees = ticket.getAssignees().isEmpty() ? null :
                 ticket.getAssignees().stream().map(UUID::toString).collect(Collectors.joining(","));
+        this.observers = ticket.getObservers().isEmpty() ? null :
+                ticket.getObservers().stream().map(UUID::toString).collect(Collectors.joining(","));
     }
 
     public Ticket toDomain() {
@@ -79,8 +85,14 @@ public class TicketDb {
                         .filter(s -> !s.isBlank())
                         .map(UUID::fromString)
                         .collect(Collectors.toList());
+        List<UUID> parsedObservers = (observers == null || observers.isBlank())
+                ? Collections.emptyList()
+                : Arrays.stream(observers.split(","))
+                        .filter(s -> !s.isBlank())
+                        .map(UUID::fromString)
+                        .collect(Collectors.toList());
         return new Ticket(id, projectId, ticketNumber, title, description, type, status, priority,
-                parsedAssignees, Collections.emptyList(), creator, Collections.emptyList(),
+                parsedAssignees, parsedObservers, creator, Collections.emptyList(),
                 createdAt, updatedAt, sprintId);
     }
 
@@ -111,4 +123,6 @@ public class TicketDb {
     public void setSprintId(Long sprintId) { this.sprintId = sprintId; }
     public String getAssignees() { return assignees; }
     public void setAssignees(String assignees) { this.assignees = assignees; }
+    public String getObservers() { return observers; }
+    public void setObservers(String observers) { this.observers = observers; }
 }

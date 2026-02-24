@@ -6,6 +6,7 @@ import com.mossman.domain.entities.Priority;
 import com.mossman.domain.entities.Project;
 import com.mossman.domain.entities.Ticket;
 import com.mossman.domain.events.DomainEventBus;
+import com.mossman.domain.events.TicketUpdatedEvent;
 import com.mossman.domain.repositories.ProjectRepository;
 import com.mossman.domain.repositories.TicketRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -164,5 +165,17 @@ class UpdateTicketUseCaseTest {
         assertThrows(IllegalArgumentException.class, () ->
                 useCase.execute(42L, editorId, Map.of("title", "§bad title")));
         verify(ticketRepository, never()).save(any());
+    }
+
+    @Test
+    void testExecute_PublishesTicketUpdatedEvent() {
+        when(ticketRepository.findById(42L)).thenReturn(Optional.of(existingTicket));
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+        when(ticketRepository.save(any(Ticket.class))).thenAnswer(i -> i.getArguments()[0]);
+
+        useCase.execute(42L, editorId, Map.of("title", "New Title"));
+
+        verify(eventBus).publish(argThat(e -> e instanceof TicketUpdatedEvent evt
+                && evt.requesterId().equals(editorId)));
     }
 }

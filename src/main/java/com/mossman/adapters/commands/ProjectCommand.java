@@ -96,7 +96,8 @@ public class ProjectCommand {
                         .then(CommandManager.literal("remove")
                                 .then(CommandManager.argument("prefix", StringArgumentType.word()).suggests(SuggestionHelper::suggestVisiblePrefixes)
                                         .then(CommandManager.argument("name", StringArgumentType.word()).suggests(SuggestionHelper.suggestStatusNames("prefix"))
-                                                .executes(ProjectCommand::removeStatus)))))
+                                                .then(CommandManager.argument("replacement", StringArgumentType.word()).suggests(SuggestionHelper.suggestStatusNames("prefix"))
+                                                        .executes(ProjectCommand::removeStatus))))))
                 .then(CommandManager.literal("ticketType")
                         .then(CommandManager.literal("add")
                                 .then(CommandManager.argument("prefix", StringArgumentType.word()).suggests(SuggestionHelper::suggestVisiblePrefixes)
@@ -118,7 +119,8 @@ public class ProjectCommand {
                         .then(CommandManager.literal("remove")
                                 .then(CommandManager.argument("prefix", StringArgumentType.word()).suggests(SuggestionHelper::suggestVisiblePrefixes)
                                         .then(CommandManager.argument("name", StringArgumentType.word()).suggests(SuggestionHelper.suggestTicketTypeNames("prefix"))
-                                                .executes(ProjectCommand::removeTicketType)))))
+                                                .then(CommandManager.argument("replacement", StringArgumentType.word()).suggests(SuggestionHelper.suggestTicketTypeNames("prefix"))
+                                                        .executes(ProjectCommand::removeTicketType))))))
                 .then(CommandManager.literal("relationshipType")
                         .then(CommandManager.literal("add")
                                 .then(CommandManager.argument("prefix", StringArgumentType.word()).suggests(SuggestionHelper::suggestVisiblePrefixes)
@@ -140,7 +142,8 @@ public class ProjectCommand {
                         .then(CommandManager.literal("remove")
                                 .then(CommandManager.argument("prefix", StringArgumentType.word()).suggests(SuggestionHelper::suggestVisiblePrefixes)
                                         .then(CommandManager.argument("name", StringArgumentType.word()).suggests(SuggestionHelper.suggestRelationshipTypeNames("prefix"))
-                                                .executes(ProjectCommand::removeRelationshipType)))))
+                                                .then(CommandManager.argument("replacement", StringArgumentType.word()).suggests(SuggestionHelper.suggestRelationshipTypeNames("prefix"))
+                                                        .executes(ProjectCommand::removeRelationshipType))))))
                 .build();
 
         rootNode.addChild(projectNode);
@@ -577,7 +580,7 @@ public class ProjectCommand {
                 MutableText line = Text.empty();
                 if (isEditorStatus) {
                     line.append(TuiHelper.createRunLink("[View] ", "/mossman project status view " + prefix + " " + status.name(), "View " + status.name(), Formatting.GOLD));
-                    line.append(TuiHelper.createRunLink("[✗] ", "/mossman project status remove " + prefix + " " + status.name(), "Remove " + status.name(), Formatting.RED));
+                    line.append(TuiHelper.createSuggestLink("[✗] ", "/mossman project status remove " + prefix + " " + status.name() + " ", "Remove " + status.name() + " (type replacement)", Formatting.RED));
                 }
                 line.append(coloredName(status.name(), status.textColor()));
                 source.sendMessage(line);
@@ -683,7 +686,7 @@ public class ProjectCommand {
                 MutableText line = Text.empty();
                 if (isEditorTT) {
                     line.append(TuiHelper.createRunLink("[View] ", "/mossman project ticketType view " + prefix + " " + tt.name(), "View " + tt.name(), Formatting.GOLD));
-                    line.append(TuiHelper.createRunLink("[✗] ", "/mossman project ticketType remove " + prefix + " " + tt.name(), "Remove " + tt.name(), Formatting.RED));
+                    line.append(TuiHelper.createSuggestLink("[✗] ", "/mossman project ticketType remove " + prefix + " " + tt.name() + " ", "Remove " + tt.name() + " (type replacement)", Formatting.RED));
                 }
                 line.append(coloredName(tt.name(), tt.textColor()));
                 source.sendMessage(line);
@@ -785,7 +788,7 @@ public class ProjectCommand {
                 MutableText line = Text.empty();
                 if (isEditorRT) {
                     line.append(TuiHelper.createRunLink("[View] ", "/mossman project relationshipType view " + prefix + " " + rt.name(), "View " + rt.name(), Formatting.GOLD));
-                    line.append(TuiHelper.createRunLink("[✗] ", "/mossman project relationshipType remove " + prefix + " " + rt.name(), "Remove " + rt.name(), Formatting.RED));
+                    line.append(TuiHelper.createSuggestLink("[✗] ", "/mossman project relationshipType remove " + prefix + " " + rt.name() + " ", "Remove " + rt.name() + " (type replacement)", Formatting.RED));
                 }
                 line.append(coloredName(rt.name(), rt.textColor()));
                 source.sendMessage(line);
@@ -887,6 +890,7 @@ public class ProjectCommand {
         ServerCommandSource source = context.getSource();
         String prefix = StringArgumentType.getString(context, "prefix");
         String name = StringArgumentType.getString(context, "name");
+        String replacementName = StringArgumentType.getString(context, "replacement");
         var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream().filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
         if (project == null || !PermissionChecker.hasPermission(project, source, Permission.EDITOR)) return 0;
 
@@ -895,10 +899,32 @@ public class ProjectCommand {
 
         java.util.List<com.mossman.domain.entities.Status> newStatuses = new java.util.ArrayList<>(project.getStatuses());
         newStatuses.remove(target);
+
+        var replacementStatus = newStatuses.stream().filter(s -> s.name().equalsIgnoreCase(replacementName)).findFirst().orElse(null);
+        if (replacementStatus == null) {
+            source.sendMessage(Text.literal("Replacement status not found: " + replacementName).formatted(Formatting.RED));
+            return 0;
+        }
+
         try {
             UUID rId = source.getPlayer() != null ? source.getPlayer().getUuid() : UUID.randomUUID();
             MossManMod.getUpdateProjectStatusesUseCase().execute(project.getId(), rId, newStatuses);
-            source.sendMessage(Text.literal("Removed status " + name).formatted(Formatting.YELLOW));
+
+            int migrated = 0;
+            for (var ticket : MossManMod.getTicketRepository().findByProjectId(project.getId(), 0, Integer.MAX_VALUE)) {
+                if (ticket.getStatus().equalsIgnoreCase(name)) {
+                    MossManMod.getTicketRepository().save(new com.mossman.domain.entities.Ticket(
+                            ticket.getId(), ticket.getProjectId(), ticket.getTicketNumber(),
+                            ticket.getTitle(), ticket.getDescription(), ticket.getType(),
+                            replacementStatus.name(), ticket.getPriority(),
+                            ticket.getAssignees(), ticket.getObservers(), ticket.getCreator(),
+                            ticket.getLabels(), ticket.getCreatedAt(), System.currentTimeMillis(), ticket.getSprintId()
+                    ));
+                    migrated++;
+                }
+            }
+
+            source.sendMessage(Text.literal("Removed status " + name + "; migrated " + migrated + " ticket(s) to " + replacementStatus.name()).formatted(Formatting.YELLOW));
         } catch (IllegalArgumentException e) {
             source.sendMessage(Text.literal(e.getMessage()).formatted(Formatting.RED));
         }
@@ -909,6 +935,7 @@ public class ProjectCommand {
         ServerCommandSource source = context.getSource();
         String prefix = StringArgumentType.getString(context, "prefix");
         String name = StringArgumentType.getString(context, "name");
+        String replacementName = StringArgumentType.getString(context, "replacement");
         var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream().filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
         if (project == null || !PermissionChecker.hasPermission(project, source, Permission.EDITOR)) return 0;
 
@@ -917,10 +944,32 @@ public class ProjectCommand {
 
         java.util.List<com.mossman.domain.entities.TicketType> newLists = new java.util.ArrayList<>(project.getTicketTypes());
         newLists.remove(target);
+
+        var replacementType = newLists.stream().filter(t -> t.name().equalsIgnoreCase(replacementName)).findFirst().orElse(null);
+        if (replacementType == null) {
+            source.sendMessage(Text.literal("Replacement ticket type not found: " + replacementName).formatted(Formatting.RED));
+            return 0;
+        }
+
         try {
             UUID rId = source.getPlayer() != null ? source.getPlayer().getUuid() : UUID.randomUUID();
             MossManMod.getUpdateProjectTicketTypesUseCase().execute(project.getId(), rId, newLists);
-            source.sendMessage(Text.literal("Removed ticket type " + name).formatted(Formatting.YELLOW));
+
+            int migrated = 0;
+            for (var ticket : MossManMod.getTicketRepository().findByProjectId(project.getId(), 0, Integer.MAX_VALUE)) {
+                if (ticket.getType().equalsIgnoreCase(name)) {
+                    MossManMod.getTicketRepository().save(new com.mossman.domain.entities.Ticket(
+                            ticket.getId(), ticket.getProjectId(), ticket.getTicketNumber(),
+                            ticket.getTitle(), ticket.getDescription(), replacementType.name(),
+                            ticket.getStatus(), ticket.getPriority(),
+                            ticket.getAssignees(), ticket.getObservers(), ticket.getCreator(),
+                            ticket.getLabels(), ticket.getCreatedAt(), System.currentTimeMillis(), ticket.getSprintId()
+                    ));
+                    migrated++;
+                }
+            }
+
+            source.sendMessage(Text.literal("Removed ticket type " + name + "; migrated " + migrated + " ticket(s) to " + replacementType.name()).formatted(Formatting.YELLOW));
         } catch (IllegalArgumentException e) {
             source.sendMessage(Text.literal(e.getMessage()).formatted(Formatting.RED));
         }
@@ -931,6 +980,7 @@ public class ProjectCommand {
         ServerCommandSource source = context.getSource();
         String prefix = StringArgumentType.getString(context, "prefix");
         String name = StringArgumentType.getString(context, "name");
+        String replacementName = StringArgumentType.getString(context, "replacement");
         var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream().filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
         if (project == null || !PermissionChecker.hasPermission(project, source, Permission.EDITOR)) return 0;
 
@@ -939,10 +989,17 @@ public class ProjectCommand {
 
         java.util.List<com.mossman.domain.entities.RelationshipType> newLists = new java.util.ArrayList<>(project.getRelationshipTypes());
         newLists.remove(target);
+
+        var replacementType = newLists.stream().filter(t -> t.name().equalsIgnoreCase(replacementName)).findFirst().orElse(null);
+        if (replacementType == null) {
+            source.sendMessage(Text.literal("Replacement relationship type not found: " + replacementName).formatted(Formatting.RED));
+            return 0;
+        }
+
         try {
             UUID rId = source.getPlayer() != null ? source.getPlayer().getUuid() : UUID.randomUUID();
             MossManMod.getUpdateProjectRelationshipTypesUseCase().execute(project.getId(), rId, newLists);
-            source.sendMessage(Text.literal("Removed relationship type " + name).formatted(Formatting.YELLOW));
+            source.sendMessage(Text.literal("Removed relationship type " + name + "; replacement: " + replacementType.name()).formatted(Formatting.YELLOW));
         } catch (IllegalArgumentException e) {
             source.sendMessage(Text.literal(e.getMessage()).formatted(Formatting.RED));
         }

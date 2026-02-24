@@ -64,7 +64,7 @@ class CreateTicketUseCaseTest {
 
         assertNotNull(result);
         assertEquals("Fix bug", result.getTitle());
-        verify(ticketRepository, times(1)).save(ticket);
+        verify(ticketRepository, times(1)).save(any(Ticket.class));
         verify(eventBus, times(1)).publish(any(TicketCreatedEvent.class));
     }
 
@@ -139,5 +139,16 @@ class CreateTicketUseCaseTest {
 
         assertThrows(IllegalArgumentException.class, () -> useCase.execute(ticket, creatorId));
         verify(ticketRepository, never()).save(any());
+    }
+
+    @Test
+    void testExecute_AddsCreatorToObservers() {
+        Ticket ticket = buildTicket();
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+        when(ticketRepository.save(any(Ticket.class))).thenAnswer(i -> i.getArguments()[0]);
+
+        Ticket result = useCase.execute(ticket, creatorId);
+
+        assertTrue(result.getObservers().contains(creatorId));
     }
 }

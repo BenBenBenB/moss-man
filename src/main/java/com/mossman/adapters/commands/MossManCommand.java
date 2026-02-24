@@ -23,6 +23,7 @@ public class MossManCommand {
         
         ProjectCommand.register(dispatcher, rootNode);
         TicketCommand.register(dispatcher, rootNode);
+        MailCommand.register(dispatcher, rootNode);
         AdminCommand.register(dispatcher, rootNode);
     }
 }

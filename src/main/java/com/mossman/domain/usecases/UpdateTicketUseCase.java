@@ -3,10 +3,12 @@ package com.mossman.domain.usecases;
 import com.mossman.domain.entities.Priority;
 import com.mossman.domain.entities.Ticket;
 import com.mossman.domain.events.DomainEventBus;
+import com.mossman.domain.events.TicketUpdatedEvent;
 import com.mossman.domain.repositories.TicketRepository;
 import com.mossman.domain.repositories.ProjectRepository;
 import com.mossman.domain.validation.EntityValidator;
 
+import java.time.Instant;
 import java.util.Map;
 
 public class UpdateTicketUseCase {
@@ -66,6 +68,8 @@ public class UpdateTicketUseCase {
                 current.getSprintId()
         );
 
-        return ticketRepository.save(updated);
+        Ticket saved = ticketRepository.save(updated);
+        eventBus.publish(new TicketUpdatedEvent(saved, requesterId, Instant.now()));
+        return saved;
     }
 }

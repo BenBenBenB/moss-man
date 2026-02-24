@@ -5,6 +5,7 @@ import com.j256.ormlite.dao.DaoManager;
 import com.j256.ormlite.jdbc.JdbcConnectionSource;
 import com.j256.ormlite.support.ConnectionSource;
 import com.j256.ormlite.table.TableUtils;
+import com.mossman.infrastructure.persistence.models.MailDb;
 import com.mossman.infrastructure.persistence.models.MemberDb;
 import com.mossman.infrastructure.persistence.models.ProjectDb;
 import com.mossman.infrastructure.persistence.models.TicketDb;
@@ -16,6 +17,7 @@ public class DatabaseManager {
     private final Dao<ProjectDb, Long> projectDao;
     private final Dao<TicketDb, Long> ticketDao;
     private final Dao<MemberDb, Long> memberDao;
+    private final Dao<MailDb, Long> mailDao;
 
     public DatabaseManager(String databaseUrl) throws SQLException {
         this.connectionSource = new JdbcConnectionSource(databaseUrl);
@@ -23,16 +25,19 @@ public class DatabaseManager {
         this.projectDao = DaoManager.createDao(connectionSource, ProjectDb.class);
         this.ticketDao = DaoManager.createDao(connectionSource, TicketDb.class);
         this.memberDao = DaoManager.createDao(connectionSource, MemberDb.class);
+        this.mailDao = DaoManager.createDao(connectionSource, MailDb.class);
     }
 
     private void createTables() throws SQLException {
         TableUtils.createTableIfNotExists(connectionSource, ProjectDb.class);
         TableUtils.createTableIfNotExists(connectionSource, TicketDb.class);
         TableUtils.createTableIfNotExists(connectionSource, MemberDb.class);
+        TableUtils.createTableIfNotExists(connectionSource, MailDb.class);
     }
 
     /** Drops and recreates all tables — for admin use only. */
     public void dropAndRecreateAllTables() throws SQLException {
+        TableUtils.dropTable(connectionSource, MailDb.class, true);
         TableUtils.dropTable(connectionSource, MemberDb.class, true);
         TableUtils.dropTable(connectionSource, TicketDb.class, true);
         TableUtils.dropTable(connectionSource, ProjectDb.class, true);
@@ -42,6 +47,7 @@ public class DatabaseManager {
     public Dao<ProjectDb, Long> getProjectDao() { return projectDao; }
     public Dao<TicketDb, Long> getTicketDao() { return ticketDao; }
     public Dao<MemberDb, Long> getMemberDao() { return memberDao; }
+    public Dao<MailDb, Long> getMailDao() { return mailDao; }
     public ConnectionSource getConnectionSource() { return connectionSource; }
 
     public void close() throws Exception {

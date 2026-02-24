@@ -125,4 +125,15 @@ class AssignTicketUseCaseTest {
         verify(eventBus).publish(argThat(e -> e instanceof TicketAssignedEvent evt
                 && evt.assigneeId().equals(assigneeId)));
     }
+
+    @Test
+    void testExecute_AddsAssigneeToObservers() {
+        when(ticketRepository.findById(10L)).thenReturn(Optional.of(ticket));
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+        when(ticketRepository.save(any(Ticket.class))).thenAnswer(i -> i.getArguments()[0]);
+
+        Ticket result = useCase.execute(10L, editorId, assigneeId);
+
+        assertTrue(result.getObservers().contains(assigneeId));
+    }
 }
