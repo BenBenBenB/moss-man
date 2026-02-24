@@ -15,6 +15,7 @@ import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 
@@ -117,8 +118,10 @@ public class MailCommand {
 
         try {
             MailMessage msg = com.mossman.MossManMod.getMarkMailReadUseCase().execute(id, playerId);
+            ZoneId zone = TuiHelper.resolveZone(source);
             source.sendMessage(Text.literal("--- Message #" + msg.id() + " ---").formatted(Formatting.AQUA));
             source.sendMessage(Text.literal("From: " + msg.senderName()).formatted(Formatting.GRAY));
+            source.sendMessage(Text.literal("Sent: " + TuiHelper.formatTimestamp(msg.sentAt(), zone)).formatted(Formatting.GRAY));
             source.sendMessage(Text.literal("Subject: " + msg.subject()).formatted(Formatting.WHITE));
             source.sendMessage(Text.literal(msg.body()).formatted(Formatting.WHITE));
             return 1;

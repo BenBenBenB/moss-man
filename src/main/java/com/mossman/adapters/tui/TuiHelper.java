@@ -1,10 +1,17 @@
 package com.mossman.adapters.tui;
 
+import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.ClickEvent;
 import net.minecraft.text.HoverEvent;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
+
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.UUID;
 
 public class TuiHelper {
 
@@ -61,6 +68,32 @@ public class TuiHelper {
             } catch (NumberFormatException ignored) {}
         }
         return text;
+    }
+
+    /**
+     * Resolves the configured timezone for the player issuing {@code source}.
+     * Falls back to UTC if no setting exists or the stored zone ID is invalid.
+     */
+    public static ZoneId resolveZone(ServerCommandSource source) {
+        if (source.getPlayer() == null) return ZoneOffset.UTC;
+        UUID playerId = source.getPlayer().getUuid();
+        var repo = com.mossman.MossManMod.getPlayerSettingsRepository();
+        if (repo == null) return ZoneOffset.UTC;
+        return repo.findByPlayerId(playerId)
+                .map(s -> {
+                    try { return ZoneId.of(s.timezone()); }
+                    catch (Exception e) { return (ZoneId) ZoneOffset.UTC; }
+                })
+                .orElse(ZoneOffset.UTC);
+    }
+
+    /**
+     * Formats an epoch-millisecond timestamp as {@code MM/dd HH:mm} in the given zone,
+     * e.g. {@code "02/24 14:30"}.
+     */
+    public static String formatTimestamp(long millis, ZoneId zone) {
+        return DateTimeFormatter.ofPattern("MM/dd HH:mm")
+                .format(Instant.ofEpochMilli(millis).atZone(zone));
     }
 
     /**

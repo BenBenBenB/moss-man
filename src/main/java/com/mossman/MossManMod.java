@@ -3,7 +3,9 @@ package com.mossman;
 import com.mossman.adapters.commands.MossManCommand;
 import com.mossman.adapters.tui.TuiHelper;
 import com.mossman.domain.entities.MailMessage;
+import com.mossman.domain.entities.Comment;
 import com.mossman.domain.events.TicketAssignedEvent;
+import com.mossman.domain.events.TicketCommentedEvent;
 import com.mossman.domain.events.TicketUpdatedEvent;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -24,6 +26,8 @@ import com.mossman.infrastructure.persistence.OrmLiteMailRepository;
 import com.mossman.infrastructure.persistence.OrmLiteProjectRepository;
 import com.mossman.infrastructure.persistence.OrmLiteMemberRepository;
 import com.mossman.infrastructure.persistence.OrmLiteTicketRepository;
+import com.mossman.infrastructure.persistence.OrmLiteCommentRepository;
+import com.mossman.infrastructure.persistence.OrmLitePlayerSettingsRepository;
 import com.mossman.infrastructure.persistence.OrmLiteTicketRelationshipRepository;
 import com.mossman.domain.usecases.*;
 
@@ -58,12 +62,16 @@ public class MossManMod implements ModInitializer {
     private static MarkMailReadUseCase markMailReadUseCase;
     private static LinkTicketsUseCase linkTicketsUseCase;
     private static UnlinkTicketsUseCase unlinkTicketsUseCase;
+    private static AddCommentUseCase addCommentUseCase;
+    private static DeleteCommentUseCase deleteCommentUseCase;
 
     private static OrmLiteProjectRepository projectRepository;
     private static OrmLiteTicketRepository ticketRepository;
     private static OrmLiteMemberRepository memberRepository;
     private static OrmLiteMailRepository mailRepository;
     private static OrmLiteTicketRelationshipRepository ticketRelationshipRepository;
+    private static OrmLiteCommentRepository commentRepository;
+    private static OrmLitePlayerSettingsRepository playerSettingsRepository;
 
     @Override
     public void onInitialize() {
@@ -82,6 +90,8 @@ public class MossManMod implements ModInitializer {
             ticketRepository = new OrmLiteTicketRepository(databaseManager.getTicketDao());
             mailRepository = new OrmLiteMailRepository(databaseManager.getMailDao());
             ticketRelationshipRepository = new OrmLiteTicketRelationshipRepository(databaseManager.getTicketRelationshipDao());
+            commentRepository = new OrmLiteCommentRepository(databaseManager.getCommentDao());
+            playerSettingsRepository = new OrmLitePlayerSettingsRepository(databaseManager.getPlayerSettingsDao());
 
             createProjectUseCase = new CreateProjectUseCase(projectRepository, eventBus);
             createTicketUseCase = new CreateTicketUseCase(ticketRepository, projectRepository, eventBus);
@@ -102,6 +112,8 @@ public class MossManMod implements ModInitializer {
             markMailReadUseCase = new MarkMailReadUseCase(mailRepository);
             linkTicketsUseCase = new LinkTicketsUseCase(ticketRelationshipRepository, ticketRepository, projectRepository);
             unlinkTicketsUseCase = new UnlinkTicketsUseCase(ticketRelationshipRepository, ticketRepository, projectRepository);
+            addCommentUseCase = new AddCommentUseCase(commentRepository, ticketRepository, projectRepository, eventBus);
+            deleteCommentUseCase = new DeleteCommentUseCase(commentRepository, ticketRepository, projectRepository);
 
             // Notify new assignee via mail
             eventBus.subscribe(TicketAssignedEvent.class, event -> {
@@ -134,6 +146,26 @@ public class MossManMod implements ModInitializer {
                     }
                 } catch (Exception e) {
                     LOGGER.error("Failed to send update notification", e);
+                }
+            });
+
+            // Notify observers when a comment is added (excluding the commenter)
+            eventBus.subscribe(TicketCommentedEvent.class, event -> {
+                try {
+                    if (event.ticket().getObservers().isEmpty()) return;
+                    var project = projectRepository.findById(event.ticket().getProjectId()).orElse(null);
+                    String key = event.ticket().getUserFriendlyKey(project != null ? project.getTicketPrefix() : "?");
+                    String subject = "[" + key + "] new comment";
+                    String body = event.comment().authorName() + " commented on [" + key + "]: " + event.ticket().getTitle()
+                            + "\n\n" + event.comment().message();
+                    for (UUID observerId : event.ticket().getObservers()) {
+                        if (observerId.equals(event.requesterId())) continue;
+                        MailMessage saved = sendMailUseCase.execute(new MailMessage(0, observerId, event.requesterId(),
+                                event.comment().authorName(), subject, body, false, System.currentTimeMillis()));
+                        if (server != null) deliverMailNow(saved, server);
+                    }
+                } catch (Exception e) {
+                    LOGGER.error("Failed to send comment notification", e);
                 }
             });
 
@@ -203,5 +235,9 @@ public class MossManMod implements ModInitializer {
     public static OrmLiteTicketRepository getTicketRepository() { return ticketRepository; }
     public static OrmLiteMailRepository getMailRepository() { return mailRepository; }
     public static OrmLiteTicketRelationshipRepository getTicketRelationshipRepository() { return ticketRelationshipRepository; }
+    public static AddCommentUseCase getAddCommentUseCase() { return addCommentUseCase; }
+    public static DeleteCommentUseCase getDeleteCommentUseCase() { return deleteCommentUseCase; }
+    public static OrmLiteCommentRepository getCommentRepository() { return commentRepository; }
+    public static OrmLitePlayerSettingsRepository getPlayerSettingsRepository() { return playerSettingsRepository; }
     public static DatabaseManager getDatabaseManager() { return databaseManager; }
 }

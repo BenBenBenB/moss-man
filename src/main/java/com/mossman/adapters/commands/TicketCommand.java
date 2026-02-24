@@ -19,6 +19,7 @@ import net.minecraft.util.Formatting;
 
 import com.mossman.domain.entities.TicketRelationship;
 
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -50,6 +51,9 @@ public class TicketCommand {
                                         .suggests(SuggestionHelper.suggestTicketPatch("key"))
                                         .executes(TicketCommand::updateTicket))))
                 .then(CommandManager.literal("comment")
+                        .then(CommandManager.literal("delete")
+                                .then(CommandManager.argument("commentId", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1))
+                                        .executes(TicketCommand::deleteComment)))
                         .then(CommandManager.argument("key", StringArgumentType.word()).suggests(SuggestionHelper::suggestTicketKeys)
                                 .then(CommandManager.argument("message", StringArgumentType.greedyString())
                                         .executes(TicketCommand::addComment))))
@@ -350,6 +354,31 @@ public class TicketCommand {
             }
         }
 
+        // Comments
+        List<com.mossman.domain.entities.Comment> comments = com.mossman.MossManMod.getCommentRepository().findByTicketId(ticket.getId());
+        MutableText commentsHeader = Text.literal("Comments: ").formatted(Formatting.GRAY);
+        if (comments.isEmpty()) {
+            commentsHeader.append(Text.literal("None").formatted(Formatting.GRAY));
+        }
+        source.sendMessage(commentsHeader);
+        ZoneId playerZone = TuiHelper.resolveZone(source);
+        for (var comment : comments) {
+            String dateStr = TuiHelper.formatTimestamp(comment.createdAt(), playerZone);
+            boolean canDelete = isEditor || (currentPlayerId != null && currentPlayerId.equals(comment.authorId()));
+            MutableText commentLine = Text.literal("  ").formatted(Formatting.WHITE);
+            if (canDelete) {
+                commentLine.append(TuiHelper.createRunLink("[✗]", "/mossman ticket comment delete " + comment.id(), "Delete comment", Formatting.RED));
+                commentLine.append(Text.literal(" ").formatted(Formatting.WHITE));
+            }
+            commentLine.append(Text.literal("[#" + comment.id() + "] ").formatted(Formatting.GOLD));
+            commentLine.append(Text.literal(comment.authorName() + " (" + dateStr + "): ").formatted(Formatting.GRAY));
+            commentLine.append(Text.literal(comment.message()).formatted(Formatting.WHITE));
+            source.sendMessage(commentLine);
+        }
+        if (com.mossman.domain.auth.PermissionChecker.hasPermission(project, source, com.mossman.domain.entities.Permission.CREATOR)) {
+            source.sendMessage(TuiHelper.createSuggestLink("[+ Comment]", "/mossman ticket comment " + key + " ", "Add a comment", Formatting.GOLD));
+        }
+
         if (com.mossman.domain.auth.PermissionChecker.hasPermission(project, source, com.mossman.domain.entities.Permission.EDITOR)) {
             MutableText editBtn = TuiHelper.createSuggestLink("[Edit] ", "/mossman ticket update " + key + " ", "Edit ticket fields", Formatting.YELLOW);
             source.sendMessage(editBtn);
@@ -410,16 +439,33 @@ public class TicketCommand {
         ServerCommandSource source = context.getSource();
         String key = StringArgumentType.getString(context, "key");
         String message = StringArgumentType.getString(context, "message");
-
         try {
             String prefix = key.split("-")[0];
+            int number = Integer.parseInt(key.split("-")[1]);
             var project = com.mossman.MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream()
-                    .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
+                    .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Project not found"));
+            var ticket = com.mossman.MossManMod.getTicketRepository().findByProjectId(project.getId(), 0, Integer.MAX_VALUE).stream()
+                    .filter(t -> t.getTicketNumber() == number).findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
+            UUID requesterId = source.getPlayer() != null ? source.getPlayer().getUuid() : UUID.randomUUID();
+            String authorName = source.getPlayer() != null ? source.getPlayer().getName().getString() : "system";
+            com.mossman.MossManMod.getAddCommentUseCase().execute(ticket.getId(), requesterId, authorName, message);
+            source.sendMessage(Text.literal("Comment added to " + key + ".").formatted(Formatting.GREEN));
+            return 1;
+        } catch (Exception e) {
+            source.sendMessage(TuiHelper.errorText(e));
+            return 0;
+        }
+    }
 
-            if (project != null) {
-                com.mossman.domain.auth.PermissionChecker.require(project, source, com.mossman.domain.entities.Permission.CREATOR);
-            }
-            source.sendMessage(Text.literal("Added comment to " + key + " (Comments not yet persisted)").formatted(Formatting.YELLOW));
+    private static int deleteComment(CommandContext<ServerCommandSource> context) {
+        ServerCommandSource source = context.getSource();
+        long commentId = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "commentId");
+        UUID requesterId = source.getPlayer() != null ? source.getPlayer().getUuid() : UUID.randomUUID();
+        try {
+            com.mossman.MossManMod.getDeleteCommentUseCase().execute(commentId, requesterId);
+            source.sendMessage(Text.literal("Comment deleted.").formatted(Formatting.YELLOW));
             return 1;
         } catch (Exception e) {
             source.sendMessage(TuiHelper.errorText(e));
