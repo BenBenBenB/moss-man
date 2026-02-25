@@ -47,11 +47,8 @@ See **[docs/tui.md](docs/tui.md)** for the full command reference with output mo
 ## 🗺️ Roadmap
 
 ### MVP
-- TUI autocomplete suggestions for commands
-- Ticket assignment — Use Cases and TUI commands
-- Notification system — whisper player when added to a ticket's assignees
-- In-game GUI screen accessible via `/mossman gui`
-- SMP experience features (crafting, etc.)
+- In-game GUI screen via `/mossman gui` (client-side, separate from chat TUI)
+- SMP crafting/in-game item integration
 
 ### Post-MVP
 - **Moss Monitor** — placeable block that displays MossMan data; linkable to other monitors via a config item; supports up to 8×8, must form a solid 1-wide rectangle (vertical or horizontal)
