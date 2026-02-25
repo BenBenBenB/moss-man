@@ -17,12 +17,13 @@ public class UpdateProjectStatusesUseCase {
                 .orElseThrow(() -> new IllegalArgumentException("Project not found: id=" + projectId));
         com.mossman.domain.auth.PermissionChecker.requireProjectEditor(current, requesterId);
 
-        long distinctNames = newStatuses.stream().map(s -> s.name().toLowerCase()).distinct().count();
-        if (distinctNames < newStatuses.size()) {
-            throw new IllegalArgumentException("Status name must be unique for each project.");
+        long distinctKeys = newStatuses.stream().map(s -> s.key().toLowerCase()).distinct().count();
+        if (distinctKeys < newStatuses.size()) {
+            throw new IllegalArgumentException("Status key must be unique for each project.");
         }
         newStatuses.forEach(s -> {
-            EntityValidator.requireValidShortName("status name", s.name());
+            EntityValidator.requireValidKey("status key", s.key());
+            EntityValidator.requireValidDisplayName("status display name", s.displayName());
             TextColorValidator.requireValid("textColor", s.textColor());
         });
 

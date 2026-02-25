@@ -68,10 +68,10 @@ class ProjectStatusCommands {
             for (var status : project.getStatuses()) {
                 MutableText line = Text.empty();
                 if (isEditorStatus) {
-                    line.append(TuiHelper.createRunLink("[View] ", "/mossman project status view " + prefix + " " + status.name(), "View " + status.name(), Formatting.GOLD));
-                    line.append(TuiHelper.createSuggestLink("[✗] ", "/mossman project status remove " + prefix + " " + status.name() + " ", "Remove " + status.name() + " (type replacement)", Formatting.RED));
+                    line.append(TuiHelper.createRunLink("[View] ", "/mossman project status view " + prefix + " " + status.key(), "View " + status.key(), Formatting.GOLD));
+                    line.append(TuiHelper.createSuggestLink("[✗] ", "/mossman project status remove " + prefix + " " + status.key() + " ", "Remove " + status.key() + " (type replacement)", Formatting.RED));
                 }
-                line.append(coloredName(status.name(), status.textColor()));
+                line.append(coloredName(status.displayName(), status.textColor()));
                 source.sendMessage(line);
             }
         }
@@ -88,18 +88,22 @@ class ProjectStatusCommands {
         String name = StringArgumentType.getString(context, "name");
         var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream().filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
         if (project == null || !PermissionChecker.canView(project, source)) return 0;
-        var status = project.getStatuses().stream().filter(s -> s.name().equalsIgnoreCase(name)).findFirst().orElse(null);
+        var status = project.getStatuses().stream().filter(s -> s.key().equalsIgnoreCase(name)).findFirst().orElse(null);
         if (status == null) { source.sendMessage(Text.literal("Status not found: " + name).formatted(Formatting.RED)); return 0; }
 
-        source.sendMessage(Text.literal("--- Status: " + status.name() + " ---").formatted(Formatting.AQUA));
+        source.sendMessage(Text.literal("--- Status: " + status.key() + " ---").formatted(Formatting.AQUA));
         boolean isEditor = PermissionChecker.hasPermission(project, source, Permission.EDITOR);
 
-        MutableText nameLine = Text.empty();
-        if (isEditor) nameLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project status update " + prefix + " " + status.name() + " {name:\"" + status.name() + "\"}", "Click to edit Name", Formatting.GRAY));
-        source.sendMessage(nameLine.append(Text.literal("Name: " + status.name()).formatted(Formatting.WHITE)));
+        MutableText keyLine = Text.empty();
+        if (isEditor) keyLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project status update " + prefix + " " + status.key() + " {key:\"" + status.key() + "\"}", "Click to edit Key", Formatting.GRAY));
+        source.sendMessage(keyLine.append(Text.literal("Key: " + status.key()).formatted(Formatting.WHITE)));
+
+        MutableText displayNameLine = Text.empty();
+        if (isEditor) displayNameLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project status update " + prefix + " " + status.key() + " {displayName:\"" + status.displayName() + "\"}", "Click to edit Display Name", Formatting.GRAY));
+        source.sendMessage(displayNameLine.append(Text.literal("Display Name: " + status.displayName()).formatted(Formatting.WHITE)));
 
         MutableText colorLine = Text.empty();
-        if (isEditor) colorLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project status update " + prefix + " " + status.name() + " {textColor:\"" + (status.textColor() != null ? status.textColor() : "") + "\"}", "Click to edit Text Color", Formatting.GRAY));
+        if (isEditor) colorLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project status update " + prefix + " " + status.key() + " {textColor:\"" + (status.textColor() != null ? status.textColor() : "") + "\"}", "Click to edit Text Color", Formatting.GRAY));
         source.sendMessage(colorLine.append(Text.literal("Text Color: " + (status.textColor() != null ? status.textColor() : "None")).formatted(Formatting.WHITE)));
 
         return 1;
@@ -113,13 +117,14 @@ class ProjectStatusCommands {
         if (project == null || !PermissionChecker.hasPermission(project, source, Permission.EDITOR)) return 0;
 
         var patch = NbtPatchParser.toMap(NbtCompoundArgumentType.getNbtCompound(context, "patch"));
-        var target = project.getStatuses().stream().filter(s -> s.name().equalsIgnoreCase(name)).findFirst().orElse(null);
+        var target = project.getStatuses().stream().filter(s -> s.key().equalsIgnoreCase(name)).findFirst().orElse(null);
         if (target == null) return 0;
 
         List<com.mossman.domain.entities.Status> newStatuses = new ArrayList<>(project.getStatuses());
         newStatuses.remove(target);
         newStatuses.add(new com.mossman.domain.entities.Status(
-            patch.getOrDefault("name", target.name()),
+            patch.getOrDefault("key", target.key()),
+            patch.getOrDefault("displayName", target.displayName()),
             patch.getOrDefault("textColor", target.textColor())
         ));
 
@@ -140,13 +145,13 @@ class ProjectStatusCommands {
         var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream().filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
         if (project == null || !PermissionChecker.hasPermission(project, source, Permission.EDITOR)) return 0;
 
-        if (project.getStatuses().stream().anyMatch(s -> s.name().equalsIgnoreCase(name))) {
+        if (project.getStatuses().stream().anyMatch(s -> s.key().equalsIgnoreCase(name))) {
             source.sendMessage(Text.literal("Status already exists.").formatted(Formatting.RED));
             return 0;
         }
 
         List<com.mossman.domain.entities.Status> newStatuses = new ArrayList<>(project.getStatuses());
-        newStatuses.add(new com.mossman.domain.entities.Status(name, ""));
+        newStatuses.add(new com.mossman.domain.entities.Status(name, name, ""));
 
         try {
             UUID rId = source.getPlayer() != null ? source.getPlayer().getUuid() : UUID.randomUUID();
@@ -166,13 +171,13 @@ class ProjectStatusCommands {
         var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream().filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
         if (project == null || !PermissionChecker.hasPermission(project, source, Permission.EDITOR)) return 0;
 
-        var target = project.getStatuses().stream().filter(s -> s.name().equalsIgnoreCase(name)).findFirst().orElse(null);
+        var target = project.getStatuses().stream().filter(s -> s.key().equalsIgnoreCase(name)).findFirst().orElse(null);
         if (target == null) { source.sendMessage(Text.literal("Status not found: " + name).formatted(Formatting.RED)); return 0; }
 
         List<com.mossman.domain.entities.Status> newStatuses = new ArrayList<>(project.getStatuses());
         newStatuses.remove(target);
 
-        var replacementStatus = newStatuses.stream().filter(s -> s.name().equalsIgnoreCase(replacementName)).findFirst().orElse(null);
+        var replacementStatus = newStatuses.stream().filter(s -> s.key().equalsIgnoreCase(replacementName)).findFirst().orElse(null);
         if (replacementStatus == null) {
             source.sendMessage(Text.literal("Replacement status not found: " + replacementName).formatted(Formatting.RED));
             return 0;
@@ -188,7 +193,7 @@ class ProjectStatusCommands {
                     MossManMod.getTicketRepository().save(new com.mossman.domain.entities.Ticket(
                             ticket.getId(), ticket.getProjectId(), ticket.getTicketNumber(),
                             ticket.getTitle(), ticket.getDescription(), ticket.getType(),
-                            replacementStatus.name(), ticket.getPriority(),
+                            replacementStatus.key(), ticket.getPriority(),
                             ticket.getAssignees(), ticket.getObservers(), ticket.getCreator(),
                             ticket.getLabels(), ticket.getCreatedAt(), System.currentTimeMillis(), ticket.getSprintId()
                     ));
@@ -196,7 +201,7 @@ class ProjectStatusCommands {
                 }
             }
 
-            source.sendMessage(Text.literal("Removed status " + name + "; migrated " + migrated + " ticket(s) to " + replacementStatus.name()).formatted(Formatting.YELLOW));
+            source.sendMessage(Text.literal("Removed status " + name + "; migrated " + migrated + " ticket(s) to " + replacementStatus.key()).formatted(Formatting.YELLOW));
         } catch (IllegalArgumentException e) {
             source.sendMessage(Text.literal(e.getMessage()).formatted(Formatting.RED));
         }

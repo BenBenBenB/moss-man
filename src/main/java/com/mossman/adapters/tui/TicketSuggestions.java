@@ -111,8 +111,8 @@ public final class TicketSuggestions {
         m.put("title", null);
         m.put("priority", List.of("LOW", "MEDIUM", "HIGH", "URGENT"));
         if (project != null) {
-            m.put("status", project.getStatuses().stream().map(s -> s.name()).toList());
-            m.put("type", project.getTicketTypes().stream().map(t -> t.name()).toList());
+            m.put("status", project.getStatuses().stream().map(s -> s.key()).toList());
+            m.put("type", project.getTicketTypes().stream().map(t -> t.key()).toList());
         } else {
             m.put("status", null);
             m.put("type", null);
@@ -126,8 +126,8 @@ public final class TicketSuggestions {
         m.put("description", null);
         m.put("priority", List.of("LOW", "MEDIUM", "HIGH", "URGENT"));
         if (project != null) {
-            m.put("status", project.getStatuses().stream().map(s -> s.name()).toList());
-            m.put("type", project.getTicketTypes().stream().map(t -> t.name()).toList());
+            m.put("status", project.getStatuses().stream().map(s -> s.key()).toList());
+            m.put("type", project.getTicketTypes().stream().map(t -> t.key()).toList());
         } else {
             m.put("status", null);
             m.put("type", null);

@@ -34,22 +34,22 @@ class UpdateProjectRelationshipTypesUseCaseTest {
         Project existingProject = Project.builder()
                 .id(1L)
                 .members(List.of(new Member(0, editorId, "Editor", "Editor", Permission.EDITOR)))
-                .relationshipTypes(List.of(new RelationshipType("BLOCKS", "Blocks", "Blocked by", "red")))
+                .relationshipTypes(List.of(new RelationshipType("BLOCKS", "Blocks", "Blocks", "Blocked by", "red")))
                 .build();
 
         when(projectRepository.findById(1L)).thenReturn(Optional.of(existingProject));
         when(projectRepository.save(any(Project.class))).thenAnswer(i -> i.getArguments()[0]);
 
         List<RelationshipType> newTypes = List.of(
-                new RelationshipType("BLOCKS", "Blocks", "Blocked by", "red"),
-                new RelationshipType("RELATES", "Relates to", "Relates to", "blue")
+                new RelationshipType("BLOCKS", "Blocks", "Blocks", "Blocked by", "red"),
+                new RelationshipType("RELATES", "Relates To", "Relates to", "Relates to", "blue")
         );
 
         Project updatedProject = useCase.execute(1L, editorId, newTypes);
 
         assertNotNull(updatedProject);
         assertEquals(2, updatedProject.getRelationshipTypes().size());
-        assertEquals("RELATES", updatedProject.getRelationshipTypes().get(1).name());
+        assertEquals("RELATES", updatedProject.getRelationshipTypes().get(1).key());
         verify(projectRepository, times(1)).save(any(Project.class));
     }
 
@@ -79,7 +79,7 @@ class UpdateProjectRelationshipTypesUseCaseTest {
     }
 
     @Test
-    void testExecute_ThrowsExceptionIfRelationshipTypeNamesNotUnique() {
+    void testExecute_ThrowsExceptionIfRelationshipTypeKeysNotUnique() {
         UUID editorId = UUID.randomUUID();
         Project existingProject = Project.builder()
                 .id(1L)
@@ -89,8 +89,8 @@ class UpdateProjectRelationshipTypesUseCaseTest {
         when(projectRepository.findById(1L)).thenReturn(Optional.of(existingProject));
 
         List<RelationshipType> duplicateTypes = List.of(
-                new RelationshipType("RELATES", "Relates to", "Relates to", "blue"),
-                new RelationshipType("relates", "Duplicates", "Duplicated by", "red") // Duplicate ignoring case
+                new RelationshipType("RELATES", "Relates To", "Relates to", "Relates to", "blue"),
+                new RelationshipType("relates", "relates", "Duplicates", "Duplicated by", "red") // Duplicate key ignoring case
         );
 
         assertThrows(IllegalArgumentException.class, () -> {
@@ -101,7 +101,7 @@ class UpdateProjectRelationshipTypesUseCaseTest {
     }
 
     @Test
-    void testExecute_ThrowsIfRelTypeNameBlank() {
+    void testExecute_ThrowsIfRelTypeKeyBlank() {
         UUID editorId = UUID.randomUUID();
         Project project = Project.builder()
                 .id(1L)
@@ -110,7 +110,7 @@ class UpdateProjectRelationshipTypesUseCaseTest {
         when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
 
         assertThrows(IllegalArgumentException.class, () ->
-                useCase.execute(1L, editorId, List.of(new RelationshipType("", "blocks", "is blocked by", ""))));
+                useCase.execute(1L, editorId, List.of(new RelationshipType("", "", "blocks", "is blocked by", ""))));
         verify(projectRepository, never()).save(any());
     }
 
@@ -124,7 +124,7 @@ class UpdateProjectRelationshipTypesUseCaseTest {
         when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
 
         assertThrows(IllegalArgumentException.class, () ->
-                useCase.execute(1L, editorId, List.of(new RelationshipType("BLOCKS", "§blocks", "is blocked by", ""))));
+                useCase.execute(1L, editorId, List.of(new RelationshipType("BLOCKS", "BLOCKS", "§blocks", "is blocked by", ""))));
         verify(projectRepository, never()).save(any());
     }
 }

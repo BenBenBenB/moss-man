@@ -416,7 +416,7 @@ public class TicketCommand {
             source.sendMessage(relsHeader);
             for (TicketRelationship rel : rels) {
                 var relTypeOpt = project.getRelationshipTypes().stream()
-                        .filter(rt -> rt.name().equalsIgnoreCase(rel.type()))
+                        .filter(rt -> rt.key().equalsIgnoreCase(rel.type()))
                         .findFirst();
                 if (relTypeOpt.isEmpty()) continue;
                 var relType = relTypeOpt.get();
@@ -662,7 +662,7 @@ public class TicketCommand {
             com.mossman.MossManMod.getLinkTicketsUseCase().execute(sourceTicket.getId(), targetTicket.getId(), type, requesterId);
 
             var relTypeOpt = sourceProject.getRelationshipTypes().stream()
-                    .filter(r2 -> r2.name().equalsIgnoreCase(type)).findFirst();
+                    .filter(r2 -> r2.key().equalsIgnoreCase(type)).findFirst();
             String desc = relTypeOpt.map(r2 -> r2.sourceToTargetDescription()).orElse(type);
             source.sendMessage(Text.literal("Linked " + sourceKey + " " + desc + " " + targetKey).formatted(Formatting.GREEN));
             return 1;

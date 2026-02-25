@@ -67,10 +67,10 @@ class ProjectTicketTypeCommands {
             for (var tt : project.getTicketTypes()) {
                 MutableText line = Text.empty();
                 if (isEditorTT) {
-                    line.append(TuiHelper.createRunLink("[View] ", "/mossman project ticketType view " + prefix + " " + tt.name(), "View " + tt.name(), Formatting.GOLD));
-                    line.append(TuiHelper.createSuggestLink("[✗] ", "/mossman project ticketType remove " + prefix + " " + tt.name() + " ", "Remove " + tt.name() + " (type replacement)", Formatting.RED));
+                    line.append(TuiHelper.createRunLink("[View] ", "/mossman project ticketType view " + prefix + " " + tt.key(), "View " + tt.key(), Formatting.GOLD));
+                    line.append(TuiHelper.createSuggestLink("[✗] ", "/mossman project ticketType remove " + prefix + " " + tt.key() + " ", "Remove " + tt.key() + " (type replacement)", Formatting.RED));
                 }
-                line.append(coloredName(tt.name(), tt.textColor()));
+                line.append(coloredName(tt.displayName(), tt.textColor()));
                 source.sendMessage(line);
             }
         }
@@ -87,18 +87,22 @@ class ProjectTicketTypeCommands {
         String name = StringArgumentType.getString(context, "name");
         var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream().filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
         if (project == null || !PermissionChecker.canView(project, source)) return 0;
-        var tt = project.getTicketTypes().stream().filter(t -> t.name().equalsIgnoreCase(name)).findFirst().orElse(null);
+        var tt = project.getTicketTypes().stream().filter(t -> t.key().equalsIgnoreCase(name)).findFirst().orElse(null);
         if (tt == null) return 0;
 
-        source.sendMessage(Text.literal("--- Ticket Type: " + tt.name() + " ---").formatted(Formatting.AQUA));
+        source.sendMessage(Text.literal("--- Ticket Type: " + tt.key() + " ---").formatted(Formatting.AQUA));
         boolean isEditor = PermissionChecker.hasPermission(project, source, Permission.EDITOR);
 
-        MutableText nameLine = Text.empty();
-        if (isEditor) nameLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project ticketType update " + prefix + " " + tt.name() + " {name:\"" + tt.name() + "\"}", "Click to edit Name", Formatting.GRAY));
-        source.sendMessage(nameLine.append(Text.literal("Name: " + tt.name()).formatted(Formatting.WHITE)));
+        MutableText keyLine = Text.empty();
+        if (isEditor) keyLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project ticketType update " + prefix + " " + tt.key() + " {key:\"" + tt.key() + "\"}", "Click to edit Key", Formatting.GRAY));
+        source.sendMessage(keyLine.append(Text.literal("Key: " + tt.key()).formatted(Formatting.WHITE)));
+
+        MutableText displayNameLine = Text.empty();
+        if (isEditor) displayNameLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project ticketType update " + prefix + " " + tt.key() + " {displayName:\"" + tt.displayName() + "\"}", "Click to edit Display Name", Formatting.GRAY));
+        source.sendMessage(displayNameLine.append(Text.literal("Display Name: " + tt.displayName()).formatted(Formatting.WHITE)));
 
         MutableText colorLine = Text.empty();
-        if (isEditor) colorLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project ticketType update " + prefix + " " + tt.name() + " {textColor:\"" + (tt.textColor() != null ? tt.textColor() : "") + "\"}", "Click to edit Text Color", Formatting.GRAY));
+        if (isEditor) colorLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project ticketType update " + prefix + " " + tt.key() + " {textColor:\"" + (tt.textColor() != null ? tt.textColor() : "") + "\"}", "Click to edit Text Color", Formatting.GRAY));
         source.sendMessage(colorLine.append(Text.literal("Text Color: " + (tt.textColor() != null ? tt.textColor() : "None")).formatted(Formatting.WHITE)));
         return 1;
     }
@@ -111,12 +115,16 @@ class ProjectTicketTypeCommands {
         if (project == null || !PermissionChecker.hasPermission(project, source, Permission.EDITOR)) return 0;
 
         var patch = NbtPatchParser.toMap(NbtCompoundArgumentType.getNbtCompound(context, "patch"));
-        var target = project.getTicketTypes().stream().filter(t -> t.name().equalsIgnoreCase(name)).findFirst().orElse(null);
+        var target = project.getTicketTypes().stream().filter(t -> t.key().equalsIgnoreCase(name)).findFirst().orElse(null);
         if (target == null) return 0;
 
         List<com.mossman.domain.entities.TicketType> newLists = new ArrayList<>(project.getTicketTypes());
         newLists.remove(target);
-        newLists.add(new com.mossman.domain.entities.TicketType(patch.getOrDefault("name", target.name()), patch.getOrDefault("textColor", target.textColor())));
+        newLists.add(new com.mossman.domain.entities.TicketType(
+            patch.getOrDefault("key", target.key()),
+            patch.getOrDefault("displayName", target.displayName()),
+            patch.getOrDefault("textColor", target.textColor())
+        ));
 
         try {
             UUID rId = source.getPlayer() != null ? source.getPlayer().getUuid() : UUID.randomUUID();
@@ -135,13 +143,13 @@ class ProjectTicketTypeCommands {
         var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream().filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
         if (project == null || !PermissionChecker.hasPermission(project, source, Permission.EDITOR)) return 0;
 
-        if (project.getTicketTypes().stream().anyMatch(t -> t.name().equalsIgnoreCase(name))) {
+        if (project.getTicketTypes().stream().anyMatch(t -> t.key().equalsIgnoreCase(name))) {
             source.sendMessage(Text.literal("Ticket type already exists.").formatted(Formatting.RED));
             return 0;
         }
 
         List<com.mossman.domain.entities.TicketType> newLists = new ArrayList<>(project.getTicketTypes());
-        newLists.add(new com.mossman.domain.entities.TicketType(name, ""));
+        newLists.add(new com.mossman.domain.entities.TicketType(name, name, ""));
 
         try {
             UUID rId = source.getPlayer() != null ? source.getPlayer().getUuid() : UUID.randomUUID();
@@ -161,13 +169,13 @@ class ProjectTicketTypeCommands {
         var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream().filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
         if (project == null || !PermissionChecker.hasPermission(project, source, Permission.EDITOR)) return 0;
 
-        var target = project.getTicketTypes().stream().filter(t -> t.name().equalsIgnoreCase(name)).findFirst().orElse(null);
+        var target = project.getTicketTypes().stream().filter(t -> t.key().equalsIgnoreCase(name)).findFirst().orElse(null);
         if (target == null) { source.sendMessage(Text.literal("Ticket type not found: " + name).formatted(Formatting.RED)); return 0; }
 
         List<com.mossman.domain.entities.TicketType> newLists = new ArrayList<>(project.getTicketTypes());
         newLists.remove(target);
 
-        var replacementType = newLists.stream().filter(t -> t.name().equalsIgnoreCase(replacementName)).findFirst().orElse(null);
+        var replacementType = newLists.stream().filter(t -> t.key().equalsIgnoreCase(replacementName)).findFirst().orElse(null);
         if (replacementType == null) {
             source.sendMessage(Text.literal("Replacement ticket type not found: " + replacementName).formatted(Formatting.RED));
             return 0;
@@ -182,7 +190,7 @@ class ProjectTicketTypeCommands {
                 if (ticket.getType().equalsIgnoreCase(name)) {
                     MossManMod.getTicketRepository().save(new com.mossman.domain.entities.Ticket(
                             ticket.getId(), ticket.getProjectId(), ticket.getTicketNumber(),
-                            ticket.getTitle(), ticket.getDescription(), replacementType.name(),
+                            ticket.getTitle(), ticket.getDescription(), replacementType.key(),
                             ticket.getStatus(), ticket.getPriority(),
                             ticket.getAssignees(), ticket.getObservers(), ticket.getCreator(),
                             ticket.getLabels(), ticket.getCreatedAt(), System.currentTimeMillis(), ticket.getSprintId()
@@ -191,7 +199,7 @@ class ProjectTicketTypeCommands {
                 }
             }
 
-            source.sendMessage(Text.literal("Removed ticket type " + name + "; migrated " + migrated + " ticket(s) to " + replacementType.name()).formatted(Formatting.YELLOW));
+            source.sendMessage(Text.literal("Removed ticket type " + name + "; migrated " + migrated + " ticket(s) to " + replacementType.key()).formatted(Formatting.YELLOW));
         } catch (IllegalArgumentException e) {
             source.sendMessage(Text.literal(e.getMessage()).formatted(Formatting.RED));
         }

@@ -6,6 +6,7 @@ public final class EntityValidator {
 
     private static final Pattern ALPHANUMERIC_PATTERN = Pattern.compile("^[A-Z0-9]{1,8}$");
     private static final Pattern RESOURCE_LOCATION_PATTERN = Pattern.compile("^[a-z0-9_.\\-]+:[a-z0-9_./\\-]+$");
+    private static final Pattern KEY_PATTERN = Pattern.compile("[A-Z0-9_]+");
 
     private EntityValidator() {}
 
@@ -121,6 +122,27 @@ public final class EntityValidator {
         if (value.contains("|")) {
             throw new IllegalArgumentException("Label must not contain the '|' character.");
         }
+    }
+
+    /** Validates a settings key: required, max 32 chars, uppercase letters/digits/underscores only (e.g. OPEN, IN_PROGRESS). */
+    public static void requireValidKey(String fieldLabel, String value) {
+        if (value == null || value.isBlank())
+            throw new IllegalArgumentException(fieldLabel + " is required.");
+        if (value.length() > 32)
+            throw new IllegalArgumentException(fieldLabel + " must be 32 characters or fewer.");
+        if (!KEY_PATTERN.matcher(value).matches())
+            throw new IllegalArgumentException(fieldLabel + " must be uppercase letters, digits, and underscores only (e.g. OPEN, IN_PROGRESS).");
+    }
+
+    /** Validates a display name: required, max 64 chars, no control characters or section sign. */
+    public static void requireValidDisplayName(String fieldLabel, String value) {
+        if (value == null || value.isBlank())
+            throw new IllegalArgumentException(fieldLabel + " is required.");
+        if (value.length() > 64)
+            throw new IllegalArgumentException(fieldLabel + " must be 64 characters or fewer.");
+        for (char c : value.toCharArray())
+            if (c < 0x20 || c == 0x7F || c == '\u00A7')
+                throw new IllegalArgumentException(fieldLabel + " contains invalid characters.");
     }
 
     /** Validates a relationship type description field: optional (blank/null ok), max 64 chars, safe unicode. */

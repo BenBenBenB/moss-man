@@ -17,12 +17,13 @@ public class UpdateProjectRelationshipTypesUseCase {
                 .orElseThrow(() -> new IllegalArgumentException("Project not found: id=" + projectId));
         com.mossman.domain.auth.PermissionChecker.requireProjectEditor(current, requesterId);
 
-        long distinctNames = newRelTypes.stream().map(r -> r.name().toLowerCase()).distinct().count();
-        if (distinctNames < newRelTypes.size()) {
-            throw new IllegalArgumentException("Relationship type name must be unique for each project.");
+        long distinctKeys = newRelTypes.stream().map(r -> r.key().toLowerCase()).distinct().count();
+        if (distinctKeys < newRelTypes.size()) {
+            throw new IllegalArgumentException("Relationship type key must be unique for each project.");
         }
         newRelTypes.forEach(r -> {
-            EntityValidator.requireValidShortName("relationship type name", r.name());
+            EntityValidator.requireValidKey("relationship type key", r.key());
+            EntityValidator.requireValidDisplayName("relationship type display name", r.displayName());
             EntityValidator.requireValidRelTypeDescription("sourceToTargetDescription", r.sourceToTargetDescription());
             EntityValidator.requireValidRelTypeDescription("targetToSourceDescription", r.targetToSourceDescription());
             TextColorValidator.requireValid("textColor", r.textColor());

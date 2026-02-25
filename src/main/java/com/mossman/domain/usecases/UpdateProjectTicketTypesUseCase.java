@@ -17,12 +17,13 @@ public class UpdateProjectTicketTypesUseCase {
                 .orElseThrow(() -> new IllegalArgumentException("Project not found: id=" + projectId));
         com.mossman.domain.auth.PermissionChecker.requireProjectEditor(current, requesterId);
 
-        long distinctNames = newTicketTypes.stream().map(t -> t.name().toLowerCase()).distinct().count();
-        if (distinctNames < newTicketTypes.size()) {
-            throw new IllegalArgumentException("Ticket type name must be unique for each project.");
+        long distinctKeys = newTicketTypes.stream().map(t -> t.key().toLowerCase()).distinct().count();
+        if (distinctKeys < newTicketTypes.size()) {
+            throw new IllegalArgumentException("Ticket type key must be unique for each project.");
         }
         newTicketTypes.forEach(t -> {
-            EntityValidator.requireValidShortName("ticket type name", t.name());
+            EntityValidator.requireValidKey("ticket type key", t.key());
+            EntityValidator.requireValidDisplayName("ticket type display name", t.displayName());
             TextColorValidator.requireValid("textColor", t.textColor());
         });
 

@@ -18,22 +18,22 @@ import java.util.UUID;
 public class CreateProjectUseCase {
 
     private static final List<Status> DEFAULT_STATUSES = List.of(
-            new Status("OPEN", ""),
-            new Status("IN_PROGRESS", ""),
-            new Status("IN_REVIEW", ""),
-            new Status("DONE", "")
+            new Status("OPEN", "Open", ""),
+            new Status("IN_PROGRESS", "In Progress", ""),
+            new Status("IN_REVIEW", "In Review", ""),
+            new Status("DONE", "Done", "")
     );
 
     private static final List<TicketType> DEFAULT_TICKET_TYPES = List.of(
-            new TicketType("Task", ""),
-            new TicketType("Bug", ""),
-            new TicketType("Feature", "")
+            new TicketType("TASK", "Task", ""),
+            new TicketType("BUG", "Bug", ""),
+            new TicketType("FEATURE", "Feature", "")
     );
 
     private static final List<RelationshipType> DEFAULT_RELATIONSHIP_TYPES = List.of(
-            new RelationshipType("BLOCKS", "blocks", "is blocked by", ""),
-            new RelationshipType("DUPLICATES", "duplicates", "is duplicated by", ""),
-            new RelationshipType("RELATES_TO", "relates to", "relates to", "")
+            new RelationshipType("BLOCKS", "Blocks", "blocks", "is blocked by", ""),
+            new RelationshipType("DUPLICATES", "Duplicates", "duplicates", "is duplicated by", ""),
+            new RelationshipType("RELATES_TO", "Relates To", "relates to", "relates to", "")
     );
 
     private final ProjectRepository projectRepository;

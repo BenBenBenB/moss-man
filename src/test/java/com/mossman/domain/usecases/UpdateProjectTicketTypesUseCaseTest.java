@@ -34,22 +34,22 @@ class UpdateProjectTicketTypesUseCaseTest {
         Project existingProject = Project.builder()
                 .id(1L)
                 .members(List.of(new Member(0, editorId, "Editor", "Editor", Permission.EDITOR)))
-                .ticketTypes(List.of(new TicketType("BUG", "red")))
+                .ticketTypes(List.of(new TicketType("BUG", "Bug", "red")))
                 .build();
 
         when(projectRepository.findById(1L)).thenReturn(Optional.of(existingProject));
         when(projectRepository.save(any(Project.class))).thenAnswer(i -> i.getArguments()[0]);
 
         List<TicketType> newTypes = List.of(
-                new TicketType("BUG", "red"),
-                new TicketType("TASK", "green")
+                new TicketType("BUG", "Bug", "red"),
+                new TicketType("TASK", "Task", "green")
         );
 
         Project updatedProject = useCase.execute(1L, editorId, newTypes);
 
         assertNotNull(updatedProject);
         assertEquals(2, updatedProject.getTicketTypes().size());
-        assertEquals("TASK", updatedProject.getTicketTypes().get(1).name());
+        assertEquals("TASK", updatedProject.getTicketTypes().get(1).key());
         verify(projectRepository, times(1)).save(any(Project.class));
     }
 
@@ -79,7 +79,7 @@ class UpdateProjectTicketTypesUseCaseTest {
     }
 
     @Test
-    void testExecute_ThrowsExceptionIfTicketTypeNamesNotUnique() {
+    void testExecute_ThrowsExceptionIfTicketTypeKeysNotUnique() {
         UUID editorId = UUID.randomUUID();
         Project existingProject = Project.builder()
                 .id(1L)
@@ -89,8 +89,8 @@ class UpdateProjectTicketTypesUseCaseTest {
         when(projectRepository.findById(1L)).thenReturn(Optional.of(existingProject));
 
         List<TicketType> duplicateTypes = List.of(
-                new TicketType("TASK", "blue"),
-                new TicketType("task", "red") // Duplicate ignoring case
+                new TicketType("TASK", "Task", "blue"),
+                new TicketType("task", "task", "red") // Duplicate key ignoring case
         );
 
         assertThrows(IllegalArgumentException.class, () -> {
@@ -101,7 +101,7 @@ class UpdateProjectTicketTypesUseCaseTest {
     }
 
     @Test
-    void testExecute_ThrowsIfTicketTypeNameBlank() {
+    void testExecute_ThrowsIfTicketTypeKeyBlank() {
         UUID editorId = UUID.randomUUID();
         Project project = Project.builder()
                 .id(1L)
@@ -110,12 +110,12 @@ class UpdateProjectTicketTypesUseCaseTest {
         when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
 
         assertThrows(IllegalArgumentException.class, () ->
-                useCase.execute(1L, editorId, List.of(new TicketType("", "blue"))));
+                useCase.execute(1L, editorId, List.of(new TicketType("", "", "blue"))));
         verify(projectRepository, never()).save(any());
     }
 
     @Test
-    void testExecute_ThrowsIfTicketTypeNameContainsSectionSign() {
+    void testExecute_ThrowsIfTicketTypeKeyContainsInvalidChars() {
         UUID editorId = UUID.randomUUID();
         Project project = Project.builder()
                 .id(1L)
@@ -124,7 +124,7 @@ class UpdateProjectTicketTypesUseCaseTest {
         when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
 
         assertThrows(IllegalArgumentException.class, () ->
-                useCase.execute(1L, editorId, List.of(new TicketType("§BUG", ""))));
+                useCase.execute(1L, editorId, List.of(new TicketType("§BUG", "§BUG", ""))));
         verify(projectRepository, never()).save(any());
     }
 }

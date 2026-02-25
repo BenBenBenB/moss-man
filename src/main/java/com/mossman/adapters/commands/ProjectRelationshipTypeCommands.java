@@ -70,10 +70,10 @@ class ProjectRelationshipTypeCommands {
             for (var rt : project.getRelationshipTypes()) {
                 MutableText line = Text.empty();
                 if (isEditorRT) {
-                    line.append(TuiHelper.createRunLink("[View] ", "/mossman project relationshipType view " + prefix + " " + rt.name(), "View " + rt.name(), Formatting.GOLD));
-                    line.append(TuiHelper.createSuggestLink("[✗] ", "/mossman project relationshipType remove " + prefix + " " + rt.name(), "Remove " + rt.name(), Formatting.RED));
+                    line.append(TuiHelper.createRunLink("[View] ", "/mossman project relationshipType view " + prefix + " " + rt.key(), "View " + rt.key(), Formatting.GOLD));
+                    line.append(TuiHelper.createSuggestLink("[✗] ", "/mossman project relationshipType remove " + prefix + " " + rt.key(), "Remove " + rt.key(), Formatting.RED));
                 }
-                line.append(coloredName(rt.name(), rt.textColor()));
+                line.append(coloredName(rt.displayName(), rt.textColor()));
                 source.sendMessage(line);
             }
         }
@@ -90,26 +90,30 @@ class ProjectRelationshipTypeCommands {
         String name = StringArgumentType.getString(context, "name");
         var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream().filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
         if (project == null || !PermissionChecker.canView(project, source)) return 0;
-        var rt = project.getRelationshipTypes().stream().filter(t -> t.name().equalsIgnoreCase(name)).findFirst().orElse(null);
+        var rt = project.getRelationshipTypes().stream().filter(t -> t.key().equalsIgnoreCase(name)).findFirst().orElse(null);
         if (rt == null) return 0;
 
-        source.sendMessage(Text.literal("--- Relationship Type: " + rt.name() + " ---").formatted(Formatting.AQUA));
+        source.sendMessage(Text.literal("--- Relationship Type: " + rt.key() + " ---").formatted(Formatting.AQUA));
         boolean isEditor = PermissionChecker.hasPermission(project, source, Permission.EDITOR);
 
-        MutableText nameLine = Text.empty();
-        if (isEditor) nameLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project relationshipType update " + prefix + " " + rt.name() + " {name:\"" + rt.name() + "\"}", "Click to edit Name", Formatting.GRAY));
-        source.sendMessage(nameLine.append(Text.literal("Name: " + rt.name()).formatted(Formatting.WHITE)));
+        MutableText keyLine = Text.empty();
+        if (isEditor) keyLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project relationshipType update " + prefix + " " + rt.key() + " {key:\"" + rt.key() + "\"}", "Click to edit Key", Formatting.GRAY));
+        source.sendMessage(keyLine.append(Text.literal("Key: " + rt.key()).formatted(Formatting.WHITE)));
+
+        MutableText displayNameLine = Text.empty();
+        if (isEditor) displayNameLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project relationshipType update " + prefix + " " + rt.key() + " {displayName:\"" + rt.displayName() + "\"}", "Click to edit Display Name", Formatting.GRAY));
+        source.sendMessage(displayNameLine.append(Text.literal("Display Name: " + rt.displayName()).formatted(Formatting.WHITE)));
 
         MutableText sourceToTargetLine = Text.empty();
-        if (isEditor) sourceToTargetLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project relationshipType update " + prefix + " " + rt.name() + " {sourceToTargetDescription:\"" + (rt.sourceToTargetDescription() != null ? rt.sourceToTargetDescription() : "") + "\"}", "Click to edit Source -> Target", Formatting.GRAY));
+        if (isEditor) sourceToTargetLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project relationshipType update " + prefix + " " + rt.key() + " {sourceToTargetDescription:\"" + (rt.sourceToTargetDescription() != null ? rt.sourceToTargetDescription() : "") + "\"}", "Click to edit Source -> Target", Formatting.GRAY));
         source.sendMessage(sourceToTargetLine.append(Text.literal("Source->Target: " + (rt.sourceToTargetDescription() != null ? rt.sourceToTargetDescription() : "None")).formatted(Formatting.WHITE)));
 
         MutableText targetToSourceLine = Text.empty();
-        if (isEditor) targetToSourceLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project relationshipType update " + prefix + " " + rt.name() + " {targetToSourceDescription:\"" + (rt.targetToSourceDescription() != null ? rt.targetToSourceDescription() : "") + "\"}", "Click to edit Target -> Source", Formatting.GRAY));
+        if (isEditor) targetToSourceLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project relationshipType update " + prefix + " " + rt.key() + " {targetToSourceDescription:\"" + (rt.targetToSourceDescription() != null ? rt.targetToSourceDescription() : "") + "\"}", "Click to edit Target -> Source", Formatting.GRAY));
         source.sendMessage(targetToSourceLine.append(Text.literal("Target->Source: " + (rt.targetToSourceDescription() != null ? rt.targetToSourceDescription() : "None")).formatted(Formatting.WHITE)));
 
         MutableText colorLine = Text.empty();
-        if (isEditor) colorLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project relationshipType update " + prefix + " " + rt.name() + " {textColor:\"" + (rt.textColor() != null ? rt.textColor() : "") + "\"}", "Click to edit Text Color", Formatting.GRAY));
+        if (isEditor) colorLine.append(TuiHelper.createSuggestLink("[✎] ", "/mossman project relationshipType update " + prefix + " " + rt.key() + " {textColor:\"" + (rt.textColor() != null ? rt.textColor() : "") + "\"}", "Click to edit Text Color", Formatting.GRAY));
         source.sendMessage(colorLine.append(Text.literal("Text Color: " + (rt.textColor() != null ? rt.textColor() : "None")).formatted(Formatting.WHITE)));
         return 1;
     }
@@ -122,13 +126,14 @@ class ProjectRelationshipTypeCommands {
         if (project == null || !PermissionChecker.hasPermission(project, source, Permission.EDITOR)) return 0;
 
         var patch = NbtPatchParser.toMap(NbtCompoundArgumentType.getNbtCompound(context, "patch"));
-        var target = project.getRelationshipTypes().stream().filter(t -> t.name().equalsIgnoreCase(name)).findFirst().orElse(null);
+        var target = project.getRelationshipTypes().stream().filter(t -> t.key().equalsIgnoreCase(name)).findFirst().orElse(null);
         if (target == null) return 0;
 
         List<com.mossman.domain.entities.RelationshipType> newLists = new ArrayList<>(project.getRelationshipTypes());
         newLists.remove(target);
         newLists.add(new com.mossman.domain.entities.RelationshipType(
-            patch.getOrDefault("name", target.name()),
+            patch.getOrDefault("key", target.key()),
+            patch.getOrDefault("displayName", target.displayName()),
             patch.getOrDefault("sourceToTargetDescription", target.sourceToTargetDescription()),
             patch.getOrDefault("targetToSourceDescription", target.targetToSourceDescription()),
             patch.getOrDefault("textColor", target.textColor())
@@ -151,13 +156,13 @@ class ProjectRelationshipTypeCommands {
         var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream().filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
         if (project == null || !PermissionChecker.hasPermission(project, source, Permission.EDITOR)) return 0;
 
-        if (project.getRelationshipTypes().stream().anyMatch(t -> t.name().equalsIgnoreCase(name))) {
+        if (project.getRelationshipTypes().stream().anyMatch(t -> t.key().equalsIgnoreCase(name))) {
             source.sendMessage(Text.literal("Relationship type already exists.").formatted(Formatting.RED));
             return 0;
         }
 
         List<com.mossman.domain.entities.RelationshipType> newLists = new ArrayList<>(project.getRelationshipTypes());
-        newLists.add(new com.mossman.domain.entities.RelationshipType(name, "", "", ""));
+        newLists.add(new com.mossman.domain.entities.RelationshipType(name, name, "", "", ""));
 
         try {
             UUID rId = source.getPlayer() != null ? source.getPlayer().getUuid() : UUID.randomUUID();
@@ -179,7 +184,7 @@ class ProjectRelationshipTypeCommands {
         var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream().filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix)).findFirst().orElse(null);
         if (project == null || !PermissionChecker.hasPermission(project, source, Permission.EDITOR)) return 0;
 
-        var target = project.getRelationshipTypes().stream().filter(t -> t.name().equalsIgnoreCase(name)).findFirst().orElse(null);
+        var target = project.getRelationshipTypes().stream().filter(t -> t.key().equalsIgnoreCase(name)).findFirst().orElse(null);
         if (target == null) { source.sendMessage(Text.literal("Relationship type not found: " + name).formatted(Formatting.RED)); return 0; }
 
         List<com.mossman.domain.entities.RelationshipType> newLists = new ArrayList<>(project.getRelationshipTypes());
@@ -192,7 +197,7 @@ class ProjectRelationshipTypeCommands {
         List<com.mossman.domain.entities.TicketRelationship> affectedRels = new ArrayList<>();
         for (var ticket : allTickets) {
             for (var rel : relRepo.findByTicketId(ticket.getId())) {
-                if (rel.type().equalsIgnoreCase(target.name()) && seen.add(rel.id())) {
+                if (rel.type().equalsIgnoreCase(target.key()) && seen.add(rel.id())) {
                     affectedRels.add(rel);
                 }
             }
@@ -201,7 +206,7 @@ class ProjectRelationshipTypeCommands {
         final String finalReplacementName = replacementName;
         com.mossman.domain.entities.RelationshipType replacementType = null;
         if (finalReplacementName != null) {
-            replacementType = newLists.stream().filter(t -> t.name().equalsIgnoreCase(finalReplacementName)).findFirst().orElse(null);
+            replacementType = newLists.stream().filter(t -> t.key().equalsIgnoreCase(finalReplacementName)).findFirst().orElse(null);
             if (replacementType == null) {
                 source.sendMessage(Text.literal("Replacement relationship type not found: " + replacementName).formatted(Formatting.RED));
                 return 0;
@@ -212,7 +217,7 @@ class ProjectRelationshipTypeCommands {
             UUID rId = source.getPlayer() != null ? source.getPlayer().getUuid() : UUID.randomUUID();
             if (replacementType != null) {
                 for (var rel : affectedRels) {
-                    relRepo.save(new com.mossman.domain.entities.TicketRelationship(rel.id(), replacementType.name(), rel.sourceTicketId(), rel.targetTicketId()));
+                    relRepo.save(new com.mossman.domain.entities.TicketRelationship(rel.id(), replacementType.key(), rel.sourceTicketId(), rel.targetTicketId()));
                 }
             } else {
                 for (var rel : affectedRels) {
@@ -223,7 +228,7 @@ class ProjectRelationshipTypeCommands {
             String msg = "Removed relationship type " + name;
             if (!affectedRels.isEmpty()) {
                 msg += replacementType != null
-                        ? "; migrated " + affectedRels.size() + " relationship(s) to " + replacementType.name()
+                        ? "; migrated " + affectedRels.size() + " relationship(s) to " + replacementType.key()
                         : "; deleted " + affectedRels.size() + " relationship(s)";
             }
             source.sendMessage(Text.literal(msg).formatted(Formatting.YELLOW));

@@ -36,7 +36,7 @@ public class LinkTicketsUseCase {
         PermissionChecker.requireProjectEditor(project, requesterId);
 
         RelationshipType matchedType = project.getRelationshipTypes().stream()
-                .filter(rt -> rt.name().equalsIgnoreCase(type))
+                .filter(rt -> rt.key().equalsIgnoreCase(type))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Relationship type not found in project: " + type));
 
@@ -47,11 +47,11 @@ public class LinkTicketsUseCase {
             throw new IllegalArgumentException("Cannot link tickets from different projects");
         }
 
-        relRepository.findBySourceAndTargetAndType(sourceTicketId, targetTicketId, matchedType.name())
+        relRepository.findBySourceAndTargetAndType(sourceTicketId, targetTicketId, matchedType.key())
                 .ifPresent(existing -> {
                     throw new IllegalArgumentException("Relationship already exists");
                 });
 
-        return relRepository.save(new TicketRelationship(0, matchedType.name(), sourceTicketId, targetTicketId));
+        return relRepository.save(new TicketRelationship(0, matchedType.key(), sourceTicketId, targetTicketId));
     }
 }

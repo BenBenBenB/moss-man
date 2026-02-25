@@ -47,7 +47,7 @@ class LinkTicketsUseCaseTest {
                         new Member(2, viewerId, "viewer", "", Permission.VIEWER)
                 ))
                 .relationshipTypes(List.of(
-                        new RelationshipType("BLOCKS", "blocks", "is blocked by", null)
+                        new RelationshipType("BLOCKS", "Blocks", "blocks", "is blocked by", null)
                 ))
                 .externalUserPermission(Permission.FORBID)
                 .build();

@@ -34,22 +34,22 @@ class UpdateProjectStatusesUseCaseTest {
         Project existingProject = Project.builder()
                 .id(1L)
                 .members(List.of(new Member(0, editorId, "Editor", "Editor", Permission.EDITOR)))
-                .statuses(List.of(new Status("OPEN", "blue")))
+                .statuses(List.of(new Status("OPEN", "Open", "blue")))
                 .build();
 
         when(projectRepository.findById(1L)).thenReturn(Optional.of(existingProject));
         when(projectRepository.save(any(Project.class))).thenAnswer(i -> i.getArguments()[0]);
 
         List<Status> newStatuses = List.of(
-                new Status("OPEN", "blue"),
-                new Status("IN_PROGRESS", "yellow")
+                new Status("OPEN", "Open", "blue"),
+                new Status("IN_PROGRESS", "In Progress", "yellow")
         );
 
         Project updatedProject = useCase.execute(1L, editorId, newStatuses);
 
         assertNotNull(updatedProject);
         assertEquals(2, updatedProject.getStatuses().size());
-        assertEquals("IN_PROGRESS", updatedProject.getStatuses().get(1).name());
+        assertEquals("IN_PROGRESS", updatedProject.getStatuses().get(1).key());
         verify(projectRepository, times(1)).save(any(Project.class));
     }
 
@@ -79,7 +79,7 @@ class UpdateProjectStatusesUseCaseTest {
     }
 
     @Test
-    void testExecute_ThrowsExceptionIfStatusNamesNotUnique() {
+    void testExecute_ThrowsExceptionIfStatusKeysNotUnique() {
         UUID editorId = UUID.randomUUID();
         Project existingProject = Project.builder()
                 .id(1L)
@@ -89,8 +89,8 @@ class UpdateProjectStatusesUseCaseTest {
         when(projectRepository.findById(1L)).thenReturn(Optional.of(existingProject));
 
         List<Status> duplicateStatuses = List.of(
-                new Status("OPEN", "blue"),
-                new Status("open", "red") // Duplicate ignoring case
+                new Status("OPEN", "Open", "blue"),
+                new Status("open", "open", "red") // Duplicate key ignoring case
         );
 
         assertThrows(IllegalArgumentException.class, () -> {
@@ -101,7 +101,7 @@ class UpdateProjectStatusesUseCaseTest {
     }
 
     @Test
-    void testExecute_ThrowsIfStatusNameBlank() {
+    void testExecute_ThrowsIfStatusKeyBlank() {
         UUID editorId = UUID.randomUUID();
         Project project = Project.builder()
                 .id(1L)
@@ -110,12 +110,12 @@ class UpdateProjectStatusesUseCaseTest {
         when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
 
         assertThrows(IllegalArgumentException.class, () ->
-                useCase.execute(1L, editorId, List.of(new Status("", "blue"))));
+                useCase.execute(1L, editorId, List.of(new Status("", "", "blue"))));
         verify(projectRepository, never()).save(any());
     }
 
     @Test
-    void testExecute_ThrowsIfStatusNameContainsSectionSign() {
+    void testExecute_ThrowsIfStatusKeyContainsInvalidChars() {
         UUID editorId = UUID.randomUUID();
         Project project = Project.builder()
                 .id(1L)
@@ -124,7 +124,7 @@ class UpdateProjectStatusesUseCaseTest {
         when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
 
         assertThrows(IllegalArgumentException.class, () ->
-                useCase.execute(1L, editorId, List.of(new Status("§OPEN", ""))));
+                useCase.execute(1L, editorId, List.of(new Status("§OPEN", "§OPEN", ""))));
         verify(projectRepository, never()).save(any());
     }
 }

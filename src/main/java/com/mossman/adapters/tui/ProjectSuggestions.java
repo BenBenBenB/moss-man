@@ -48,14 +48,20 @@ public final class ProjectSuggestions {
         MEMBER_FIELDS = Collections.unmodifiableMap(m);
 
         m = new LinkedHashMap<>();
-        m.put("name", null);
+        m.put("key", null);
+        m.put("displayName", null);
         m.put("textColor", MC_COLORS);
         STATUS_FIELDS = Collections.unmodifiableMap(m);
 
-        TICKET_TYPE_FIELDS = STATUS_FIELDS; // identical schema
+        m = new LinkedHashMap<>();
+        m.put("key", null);
+        m.put("displayName", null);
+        m.put("textColor", MC_COLORS);
+        TICKET_TYPE_FIELDS = Collections.unmodifiableMap(m);
 
         m = new LinkedHashMap<>();
-        m.put("name", null);
+        m.put("key", null);
+        m.put("displayName", null);
         m.put("textColor", MC_COLORS);
         m.put("sourceToTargetDescription", null);
         m.put("targetToSourceDescription", null);
@@ -74,7 +80,7 @@ public final class ProjectSuggestions {
                         .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix))
                         .findFirst().orElse(null);
                 if (project == null) return builder.buildFuture();
-                return SuggestionHelper.suggest(builder, project.getStatuses().stream().map(s -> s.name()));
+                return SuggestionHelper.suggest(builder, project.getStatuses().stream().map(s -> s.key()));
             } catch (Exception e) {
                 return builder.buildFuture();
             }
@@ -93,7 +99,7 @@ public final class ProjectSuggestions {
                         .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix))
                         .findFirst().orElse(null);
                 if (project == null) return builder.buildFuture();
-                return SuggestionHelper.suggest(builder, project.getTicketTypes().stream().map(t -> t.name()));
+                return SuggestionHelper.suggest(builder, project.getTicketTypes().stream().map(t -> t.key()));
             } catch (Exception e) {
                 return builder.buildFuture();
             }
@@ -112,7 +118,7 @@ public final class ProjectSuggestions {
                         .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix))
                         .findFirst().orElse(null);
                 if (project == null) return builder.buildFuture();
-                return SuggestionHelper.suggest(builder, project.getRelationshipTypes().stream().map(r -> r.name()));
+                return SuggestionHelper.suggest(builder, project.getRelationshipTypes().stream().map(r -> r.key()));
             } catch (Exception e) {
                 return builder.buildFuture();
             }
@@ -135,7 +141,7 @@ public final class ProjectSuggestions {
                         .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix))
                         .findFirst().orElse(null);
                 if (project == null) return builder.buildFuture();
-                return SuggestionHelper.suggest(builder, project.getRelationshipTypes().stream().map(r -> r.name()));
+                return SuggestionHelper.suggest(builder, project.getRelationshipTypes().stream().map(r -> r.key()));
             } catch (Exception e) {
                 return builder.buildFuture();
             }
