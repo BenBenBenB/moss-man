@@ -19,95 +19,30 @@ MossMan is a modular, native project management mod for Minecraft, designed to b
 
 ## 💬 In-Game TUI
 
-All interactions happen through clickable chat output — no external browser needed.
+All interaction happens through clickable, styled chat output — no GUI screens or external browser needed. The root command is `/mossman`.
 
-### Project List — `/mossman project list [page]`
-```
---- MossMan Projects ---
-[MOSS] MossMan Mod Development
-[TEST] Testing Workbench
-« Page 1/2 »
-[Create New Project]
-```
-`[MOSS]` is clickable and runs `/mossman project view MOSS`. Lists are paginated (10 per page). Only projects you have permission to view are shown.
+Key commands at a glance:
 
-### Project Details — `/mossman project view MOSS`
-```
---- Project: [MOSS] ---
-[✎] Ticket Prefix: MOSS
-[✎] Name: MossMan Mod Development
-[✎] Description: Core mod development project.
-[✎] Icon Texture: None
-[✎] Text Color: None
-[✎] External Permission: VIEWER
-Members: 2 [View]
-Statuses: 3 [View]
-Ticket Types: 2 [View]
-Relationship Types: 1 [View]
-[View Tickets]
-```
-`[✎]` pencil links appear for editors and suggest the `project update` command pre-filled with the current value. `[View]` links open the respective sub-lists.
+| Area | Commands |
+|---|---|
+| Projects | `project list`, `project view`, `project create`, `project update` |
+| Members | `project member list/add/view/update/remove/transfer` |
+| Schema | `project status/ticketType/relationshipType list/add/view/update/delete` |
+| Tickets | `ticket list`, `ticket view`, `ticket create`, `ticket update` |
+| Workflow | `ticket assign/unassign`, `ticket watch/unwatch`, `ticket link/unlink` |
+| Comments | `ticket comment`, `ticket comments`, `ticket comment delete` |
+| Time | `ticket log`, `ticket logs`, `ticket log delete` |
+| Mail | `mail`, `mail read`, `mail send` |
+| Settings | `settings`, `settings timezone` |
 
-### Ticket List — `/mossman ticket list MOSS [page]`
-```
---- Tickets: MOSS ---
-[MOSS-1] Implement TUI commands [IN_PROGRESS]
-[MOSS-2] Fix persistence bug [OPEN]
-« Page 1/1 »
-[Create Ticket]
-```
-Each `[MOSS-N]` is clickable and opens the ticket view. Supports optional SNBT filter:
+Every view renders `[✎]` pencil links for editable fields (editors only), `[✗]` delete links, and `«»` pagination. Updates use Minecraft's SNBT compound format:
 
 ```
-/mossman ticket list MOSS {status:"OPEN",priority:"HIGH"}
+/mossman ticket update MOSS-1 {status:"DONE",priority:"HIGH"}
+/mossman ticket log MOSS-1 2h 30m Fixed the auth bug
 ```
 
-Filterable fields: `status`, `type`, `priority`, `title`.
-
-### Ticket Details — `/mossman ticket view MOSS-1`
-```
---- Ticket: MOSS-1 ---
-[✎] Title: Implement TUI commands
-[✎] Status: IN_PROGRESS
-[✎] Description: Add interactive /tellraw links for testing the mod's core logic.
-[Edit]
-```
-`[✎]` pencil links suggest `/mossman ticket update MOSS-1 {field:"value"}` pre-filled. `[Edit]` opens a blank update prompt. Visible to editors only.
-
-### Editing Fields — NBT Patch Syntax
-
-Updates use Minecraft's SNBT (Stringified NBT) compound format:
-
-```
-/mossman ticket update MOSS-1 {status:"DONE"}
-/mossman ticket update MOSS-1 {title:"New title",priority:"HIGH"}
-/mossman project update MOSS {description:"Updated description"}
-/mossman project member update MOSS Player123 {permission:"EDITOR"}
-```
-
-### Member Management — `/mossman project member ...`
-```
---- Members of MossMan Mod Development ---
-[Player123] Player123 (OWNER) Bossman
-[Player456] Player456 (EDITOR) Redstone Guy
-[Add Member]
-```
-- `member list <prefix> [page]` — paginated, with `[Add Member]` for owners
-- `member add <prefix> <player> <permission>` — permissions: `VIEWER`, `CREATOR`, `EDITOR`, `ADMIN`
-- `member view <prefix> <player>` — shows title and permission with `[✎]` edit links
-- `member update <prefix> <player> <patch>` — patch fields: `title`, `permission`
-- `member remove <prefix> <player>`
-- `member transfer <prefix> <player>` — transfers project ownership
-
-### Project Schema Management
-
-Editors can manage per-project statuses, ticket types, and relationship types:
-
-- `/mossman project status list/add/view/update <prefix> [name] [patch]`
-- `/mossman project ticketType list/add/view/update <prefix> [name] [patch]`
-- `/mossman project relationshipType list/add/view/update <prefix> [name] [patch]`
-
-Each `view` command shows `[✎]` edit links for `name` and `textColor` fields.
+See **[docs/tui.md](docs/tui.md)** for the full command reference with output mockups.
 
 ## 🗺️ Roadmap
 
@@ -132,7 +67,9 @@ Each `view` command shows `[✎]` edit links for `name` and `textColor` fields.
 
 ## 📜 Documentation
 
-For more detailed information, see the `.agent/` directory:
-- [Architecture](.agent/architecture.md)
-- [Data Models](.agent/datamodels.md)
-- [Coding Standards](.agent/standards.md)
+| Doc | Contents |
+|---|---|
+| [TUI Reference](docs/tui.md) | Full command reference with output mockups |
+| [Architecture](.agent/architecture.md) | Layer diagram and event-driven flow |
+| [Data Models](.agent/datamodels.md) | Field-level schema for all domain entities |
+| [Coding Standards](.agent/standards.md) | API conventions and naming rules |
