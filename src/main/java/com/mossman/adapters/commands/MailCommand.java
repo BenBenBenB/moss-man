@@ -89,21 +89,7 @@ public class MailCommand {
             }
         }
 
-        if (totalPages > 1) {
-            MutableText nav = Text.empty();
-            if (page > 1) {
-                nav.append(TuiHelper.createRunLink(TuiHelper.translatable("mossman.tui.common.pagination.prev").getString(),
-                        "/mossman mail list " + (page - 1), "Previous Page", Formatting.GOLD))
-                        .append(Text.literal(" "));
-            }
-            nav.append(TuiHelper.translatable("mossman.tui.common.pagination.page_info", page, totalPages).formatted(Formatting.GRAY));
-            if (page < totalPages) {
-                nav.append(Text.literal(" "))
-                        .append(TuiHelper.createRunLink(TuiHelper.translatable("mossman.tui.common.pagination.next").getString(),
-                                "/mossman mail list " + (page + 1), "Next Page", Formatting.GOLD));
-            }
-            source.sendMessage(nav);
-        }
+        TuiHelper.sendPaginationFooter(source, page, totalPages, "/mossman mail list");
 
         return 1;
     }

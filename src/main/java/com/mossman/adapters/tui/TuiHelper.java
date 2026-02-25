@@ -110,4 +110,32 @@ public class TuiHelper {
         }
         return Text.literal("An unexpected error occurred.").formatted(Formatting.RED);
     }
+
+    /**
+     * Extracts the optional "page" integer argument; returns 1 if absent.
+     */
+    public static int getOptionalPage(com.mojang.brigadier.context.CommandContext<ServerCommandSource> context) {
+        try { return com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "page"); }
+        catch (IllegalArgumentException e) { return 1; }
+    }
+
+    /**
+     * Sends a « Page N of M » navigation line to the source.
+     * baseCmd must be the full command without a trailing page number
+     * (e.g. "/mossman project list"). Does nothing if totalPages <= 1.
+     */
+    public static void sendPaginationFooter(ServerCommandSource source,
+            int page, int totalPages, String baseCmd) {
+        if (totalPages <= 1) return;
+        MutableText nav = Text.empty();
+        if (page > 1)
+            nav.append(createRunLink(translatable("mossman.tui.common.pagination.prev").getString(),
+                    baseCmd + " " + (page - 1), "Previous Page", Formatting.GOLD)).append(" ");
+        nav.append(translatable("mossman.tui.common.pagination.page_info", page, totalPages)
+                .formatted(Formatting.GRAY));
+        if (page < totalPages)
+            nav.append(" ").append(createRunLink(translatable("mossman.tui.common.pagination.next").getString(),
+                    baseCmd + " " + (page + 1), "Next Page", Formatting.GOLD));
+        source.sendMessage(nav);
+    }
 }

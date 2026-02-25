@@ -9,5 +9,7 @@ public interface CommentRepository {
     Comment save(Comment comment);
     Optional<Comment> findById(long id);
     List<Comment> findByTicketId(long ticketId);
+    List<Comment> findByTicketId(long ticketId, int offset, int limit);
+    long countByTicketId(long ticketId);
     void delete(long id);
 }

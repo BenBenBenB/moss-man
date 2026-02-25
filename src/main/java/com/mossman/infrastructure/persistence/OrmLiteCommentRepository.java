@@ -53,6 +53,33 @@ public class OrmLiteCommentRepository implements CommentRepository {
     }
 
     @Override
+    public List<Comment> findByTicketId(long ticketId, int offset, int limit) {
+        try {
+            return commentDao.queryBuilder()
+                    .orderBy("createdAt", true)
+                    .offset((long) offset)
+                    .limit((long) limit)
+                    .where().eq("ticketId", ticketId)
+                    .query().stream()
+                    .map(CommentDb::toDomain)
+                    .collect(Collectors.toList());
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to find comments by ticketId", e);
+        }
+    }
+
+    @Override
+    public long countByTicketId(long ticketId) {
+        try {
+            return commentDao.queryBuilder()
+                    .where().eq("ticketId", ticketId)
+                    .countOf();
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to count comments by ticketId", e);
+        }
+    }
+
+    @Override
     public void delete(long id) {
         try {
             commentDao.deleteById(id);
