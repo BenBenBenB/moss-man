@@ -12,6 +12,7 @@ import com.mossman.infrastructure.persistence.models.MemberDb;
 import com.mossman.infrastructure.persistence.models.ProjectDb;
 import com.mossman.infrastructure.persistence.models.TicketDb;
 import com.mossman.infrastructure.persistence.models.TicketRelationshipDb;
+import com.mossman.infrastructure.persistence.models.TimeLogDb;
 
 import java.sql.SQLException;
 
@@ -24,6 +25,7 @@ public class DatabaseManager {
     private final Dao<TicketRelationshipDb, Long> ticketRelationshipDao;
     private final Dao<CommentDb, Long> commentDao;
     private final Dao<PlayerSettingsDb, String> playerSettingsDao;
+    private final Dao<TimeLogDb, Long> timeLogDao;
 
     public DatabaseManager(String databaseUrl) throws SQLException {
         this.connectionSource = new JdbcConnectionSource(databaseUrl);
@@ -35,6 +37,7 @@ public class DatabaseManager {
         this.ticketRelationshipDao = DaoManager.createDao(connectionSource, TicketRelationshipDb.class);
         this.commentDao = DaoManager.createDao(connectionSource, CommentDb.class);
         this.playerSettingsDao = DaoManager.createDao(connectionSource, PlayerSettingsDb.class);
+        this.timeLogDao = DaoManager.createDao(connectionSource, TimeLogDb.class);
     }
 
     private void createTables() throws SQLException {
@@ -45,10 +48,12 @@ public class DatabaseManager {
         TableUtils.createTableIfNotExists(connectionSource, TicketRelationshipDb.class);
         TableUtils.createTableIfNotExists(connectionSource, CommentDb.class);
         TableUtils.createTableIfNotExists(connectionSource, PlayerSettingsDb.class);
+        TableUtils.createTableIfNotExists(connectionSource, TimeLogDb.class);
     }
 
     /** Drops and recreates all tables — for admin use only. */
     public void dropAndRecreateAllTables() throws SQLException {
+        TableUtils.dropTable(connectionSource, TimeLogDb.class, true);
         TableUtils.dropTable(connectionSource, PlayerSettingsDb.class, true);
         TableUtils.dropTable(connectionSource, CommentDb.class, true);
         TableUtils.dropTable(connectionSource, TicketRelationshipDb.class, true);
@@ -66,6 +71,7 @@ public class DatabaseManager {
     public Dao<TicketRelationshipDb, Long> getTicketRelationshipDao() { return ticketRelationshipDao; }
     public Dao<CommentDb, Long> getCommentDao() { return commentDao; }
     public Dao<PlayerSettingsDb, String> getPlayerSettingsDao() { return playerSettingsDao; }
+    public Dao<TimeLogDb, Long> getTimeLogDao() { return timeLogDao; }
     public ConnectionSource getConnectionSource() { return connectionSource; }
 
     public void close() throws Exception {

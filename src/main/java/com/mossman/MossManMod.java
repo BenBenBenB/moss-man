@@ -29,6 +29,7 @@ import com.mossman.infrastructure.persistence.OrmLiteTicketRepository;
 import com.mossman.infrastructure.persistence.OrmLiteCommentRepository;
 import com.mossman.infrastructure.persistence.OrmLitePlayerSettingsRepository;
 import com.mossman.infrastructure.persistence.OrmLiteTicketRelationshipRepository;
+import com.mossman.infrastructure.persistence.OrmLiteTimeLogRepository;
 import com.mossman.domain.usecases.*;
 
 import java.io.File;
@@ -64,6 +65,8 @@ public class MossManMod implements ModInitializer {
     private static UnlinkTicketsUseCase unlinkTicketsUseCase;
     private static AddCommentUseCase addCommentUseCase;
     private static DeleteCommentUseCase deleteCommentUseCase;
+    private static LogTimeUseCase logTimeUseCase;
+    private static DeleteTimeLogUseCase deleteTimeLogUseCase;
 
     private static OrmLiteProjectRepository projectRepository;
     private static OrmLiteTicketRepository ticketRepository;
@@ -72,6 +75,7 @@ public class MossManMod implements ModInitializer {
     private static OrmLiteTicketRelationshipRepository ticketRelationshipRepository;
     private static OrmLiteCommentRepository commentRepository;
     private static OrmLitePlayerSettingsRepository playerSettingsRepository;
+    private static OrmLiteTimeLogRepository timeLogRepository;
 
     @Override
     public void onInitialize() {
@@ -92,6 +96,7 @@ public class MossManMod implements ModInitializer {
             ticketRelationshipRepository = new OrmLiteTicketRelationshipRepository(databaseManager.getTicketRelationshipDao());
             commentRepository = new OrmLiteCommentRepository(databaseManager.getCommentDao());
             playerSettingsRepository = new OrmLitePlayerSettingsRepository(databaseManager.getPlayerSettingsDao());
+            timeLogRepository = new OrmLiteTimeLogRepository(databaseManager.getTimeLogDao());
 
             createProjectUseCase = new CreateProjectUseCase(projectRepository, eventBus);
             createTicketUseCase = new CreateTicketUseCase(ticketRepository, projectRepository, eventBus);
@@ -114,6 +119,8 @@ public class MossManMod implements ModInitializer {
             unlinkTicketsUseCase = new UnlinkTicketsUseCase(ticketRelationshipRepository, ticketRepository, projectRepository);
             addCommentUseCase = new AddCommentUseCase(commentRepository, ticketRepository, projectRepository, eventBus);
             deleteCommentUseCase = new DeleteCommentUseCase(commentRepository, ticketRepository, projectRepository);
+            logTimeUseCase = new LogTimeUseCase(timeLogRepository, ticketRepository, projectRepository);
+            deleteTimeLogUseCase = new DeleteTimeLogUseCase(timeLogRepository, ticketRepository, projectRepository);
 
             // Notify new assignee via mail
             eventBus.subscribe(TicketAssignedEvent.class, event -> {
@@ -239,5 +246,8 @@ public class MossManMod implements ModInitializer {
     public static DeleteCommentUseCase getDeleteCommentUseCase() { return deleteCommentUseCase; }
     public static OrmLiteCommentRepository getCommentRepository() { return commentRepository; }
     public static OrmLitePlayerSettingsRepository getPlayerSettingsRepository() { return playerSettingsRepository; }
+    public static OrmLiteTimeLogRepository getTimeLogRepository() { return timeLogRepository; }
+    public static LogTimeUseCase getLogTimeUseCase() { return logTimeUseCase; }
+    public static DeleteTimeLogUseCase getDeleteTimeLogUseCase() { return deleteTimeLogUseCase; }
     public static DatabaseManager getDatabaseManager() { return databaseManager; }
 }

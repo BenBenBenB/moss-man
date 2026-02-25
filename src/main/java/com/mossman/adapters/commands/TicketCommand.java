@@ -4,6 +4,7 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.tree.LiteralCommandNode;
+import com.mossman.adapters.tui.DurationParser;
 import com.mossman.adapters.tui.NbtPatchParser;
 import com.mossman.adapters.tui.ProjectSuggestions;
 import com.mossman.adapters.tui.SuggestionHelper;
@@ -117,6 +118,18 @@ public class TicketCommand {
                                 .executes(TicketCommand::listComments)
                                 .then(CommandManager.argument("page", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1))
                                         .executes(TicketCommand::listComments))))
+                .then(CommandManager.literal("log")
+                        .then(CommandManager.literal("delete")
+                                .then(CommandManager.argument("logId", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1))
+                                        .executes(TicketCommand::deleteTimeLog)))
+                        .then(CommandManager.argument("key", StringArgumentType.word()).suggests(TicketSuggestions::suggestTicketKeys)
+                                .then(CommandManager.argument("input", StringArgumentType.greedyString())
+                                        .executes(TicketCommand::addTimeLog))))
+                .then(CommandManager.literal("logs")
+                        .then(CommandManager.argument("key", StringArgumentType.word()).suggests(TicketSuggestions::suggestTicketKeys)
+                                .executes(TicketCommand::listTimeLogs)
+                                .then(CommandManager.argument("page", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1))
+                                        .executes(TicketCommand::listTimeLogs))))
                 .then(CommandManager.literal("watch")
                         .then(CommandManager.argument("key", StringArgumentType.word())
                                 .suggests(TicketSuggestions::suggestTicketKeys)
@@ -481,6 +494,43 @@ public class TicketCommand {
             source.sendMessage(TuiHelper.createSuggestLink("[+ Comment]", "/mossman ticket comment " + key + " ", "Add a comment", Formatting.GOLD));
         }
 
+        // Time Logs
+        long logCount = com.mossman.MossManMod.getTimeLogRepository().countByTicketId(ticket.getId());
+        long totalMinutes = com.mossman.MossManMod.getTimeLogRepository().sumMinutesByTicketId(ticket.getId());
+        String totalFormatted = DurationParser.format(totalMinutes);
+        MutableText logsHeader = Text.empty();
+        logsHeader.append(Text.literal("Time Logged (" + totalFormatted + ", " + logCount + " " + (logCount == 1 ? "entry" : "entries") + "): ").formatted(Formatting.GRAY));
+        if (logCount > 0) {
+            logsHeader.append(TuiHelper.createRunLink("[View all →]", "/mossman ticket logs " + key, "View all time logs", Formatting.GOLD));
+        }
+        source.sendMessage(logsHeader);
+        if (logCount > 0) {
+            var latestLogs = com.mossman.MossManMod.getTimeLogRepository().findByTicketId(ticket.getId(), 0, 1);
+            if (!latestLogs.isEmpty()) {
+                var tlog = latestLogs.get(0);
+                String dateStr = TuiHelper.formatTimestamp(tlog.loggedAt(), playerZone);
+                boolean canDeleteLog = isEditor || (currentPlayerId != null && currentPlayerId.equals(tlog.workerId()));
+                MutableText logLine = Text.literal("  ").formatted(Formatting.WHITE);
+                if (canDeleteLog) {
+                    logLine.append(TuiHelper.createRunLink("[✗]", "/mossman ticket log delete " + tlog.id(), "Delete time log", Formatting.RED));
+                    logLine.append(Text.literal(" ").formatted(Formatting.WHITE));
+                }
+                logLine.append(Text.literal("[#" + tlog.id() + "] ").formatted(Formatting.GOLD));
+                logLine.append(Text.literal(tlog.workerName() + " (" + dateStr + "): ").formatted(Formatting.GRAY));
+                logLine.append(Text.literal(DurationParser.format(tlog.minutes())).formatted(Formatting.WHITE));
+                if (!tlog.note().isBlank()) {
+                    logLine.append(Text.literal(" — " + tlog.note()).formatted(Formatting.GRAY));
+                }
+                source.sendMessage(logLine);
+                if (logCount > 1) {
+                    source.sendMessage(Text.literal("  (" + (logCount - 1) + " older " + (logCount > 2 ? "entries" : "entry") + " hidden)").formatted(Formatting.DARK_GRAY));
+                }
+            }
+        }
+        if (com.mossman.domain.auth.PermissionChecker.hasPermission(project, source, com.mossman.domain.entities.Permission.CREATOR)) {
+            source.sendMessage(TuiHelper.createSuggestLink("[+ Log Time]", "/mossman ticket log " + key + " ", "Log time on this ticket", Formatting.GOLD));
+        }
+
         if (com.mossman.domain.auth.PermissionChecker.hasPermission(project, source, com.mossman.domain.entities.Permission.EDITOR)) {
             MutableText editBtn = TuiHelper.createSuggestLink("[Edit] ", "/mossman ticket update " + key + " ", "Edit ticket fields", Formatting.YELLOW);
             source.sendMessage(editBtn);
@@ -696,6 +746,93 @@ public class TicketCommand {
             source.sendMessage(TuiHelper.errorText(e));
             return 0;
         }
+    }
+
+    private static int addTimeLog(CommandContext<ServerCommandSource> context) {
+        ServerCommandSource source = context.getSource();
+        String key = StringArgumentType.getString(context, "key");
+        String input = StringArgumentType.getString(context, "input");
+        String[] parts = DurationParser.splitInputAndNote(input);
+        String durationStr = parts[0];
+        String note = parts[1];
+        var r = resolveTicket(source, key);
+        if (r.isEmpty()) return 0;
+        var ticket = r.get().ticket();
+        try {
+            UUID requesterId = source.getPlayer() != null ? source.getPlayer().getUuid() : UUID.randomUUID();
+            String workerName = source.getPlayer() != null ? source.getPlayer().getName().getString() : "system";
+            var log = com.mossman.MossManMod.getLogTimeUseCase().execute(ticket.getId(), requesterId, workerName, durationStr, note);
+            source.sendMessage(Text.literal("Logged " + DurationParser.format(log.minutes()) + " on " + key + ".").formatted(Formatting.GREEN));
+            return 1;
+        } catch (Exception e) {
+            source.sendMessage(TuiHelper.errorText(e));
+            return 0;
+        }
+    }
+
+    private static int deleteTimeLog(CommandContext<ServerCommandSource> context) {
+        ServerCommandSource source = context.getSource();
+        long logId = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "logId");
+        UUID requesterId = source.getPlayer() != null ? source.getPlayer().getUuid() : UUID.randomUUID();
+        try {
+            com.mossman.MossManMod.getDeleteTimeLogUseCase().execute(logId, requesterId);
+            source.sendMessage(Text.literal("Time log deleted.").formatted(Formatting.YELLOW));
+            return 1;
+        } catch (Exception e) {
+            source.sendMessage(TuiHelper.errorText(e));
+            return 0;
+        }
+    }
+
+    private static int listTimeLogs(CommandContext<ServerCommandSource> context) {
+        ServerCommandSource source = context.getSource();
+        String key = StringArgumentType.getString(context, "key");
+        int page = getPage(context);
+
+        var r = resolveTicket(source, key);
+        if (r.isEmpty()) return 0;
+        var project = r.get().project();
+        var ticket  = r.get().ticket();
+
+        int pageSize = 10;
+        int offset = (page - 1) * pageSize;
+        long totalLogs = com.mossman.MossManMod.getTimeLogRepository().countByTicketId(ticket.getId());
+        long totalMinutes = com.mossman.MossManMod.getTimeLogRepository().sumMinutesByTicketId(ticket.getId());
+        int totalPages = Math.max(1, (int) Math.ceil((double) totalLogs / pageSize));
+
+        source.sendMessage(Text.literal("--- Time Logs: " + key + " (" + DurationParser.format(totalMinutes) + " total) ---").formatted(Formatting.AQUA));
+
+        List<com.mossman.domain.entities.TimeLog> logs = com.mossman.MossManMod.getTimeLogRepository()
+                .findByTicketId(ticket.getId(), offset, pageSize);
+
+        if (logs.isEmpty()) {
+            source.sendMessage(Text.literal("No time logged yet.").formatted(Formatting.GRAY));
+        } else {
+            ZoneId playerZone = TuiHelper.resolveZone(source);
+            UUID currentPlayerId = source.getPlayer() != null ? source.getPlayer().getUuid() : null;
+            boolean isEditor = com.mossman.domain.auth.PermissionChecker.hasPermission(project, source, com.mossman.domain.entities.Permission.EDITOR);
+            for (var tlog : logs) {
+                String dateStr = TuiHelper.formatTimestamp(tlog.loggedAt(), playerZone);
+                boolean canDelete = isEditor || (currentPlayerId != null && currentPlayerId.equals(tlog.workerId()));
+                MutableText logLine = Text.literal("  ").formatted(Formatting.WHITE);
+                if (canDelete) {
+                    logLine.append(TuiHelper.createRunLink("[✗]", "/mossman ticket log delete " + tlog.id(), "Delete time log", Formatting.RED));
+                    logLine.append(Text.literal(" ").formatted(Formatting.WHITE));
+                }
+                logLine.append(Text.literal("[#" + tlog.id() + "] ").formatted(Formatting.GOLD));
+                logLine.append(Text.literal(tlog.workerName() + " (" + dateStr + "): ").formatted(Formatting.GRAY));
+                logLine.append(Text.literal(DurationParser.format(tlog.minutes())).formatted(Formatting.WHITE));
+                if (!tlog.note().isBlank()) {
+                    logLine.append(Text.literal(" — " + tlog.note()).formatted(Formatting.GRAY));
+                }
+                source.sendMessage(logLine);
+            }
+        }
+
+        TuiHelper.sendPaginationFooter(source, page, totalPages, "/mossman ticket logs " + key);
+
+        source.sendMessage(TuiHelper.createRunLink("[← Back to ticket]", "/mossman ticket view " + key, "View ticket", Formatting.GRAY));
+        return 1;
     }
 
     private static int updateTicket(CommandContext<ServerCommandSource> context) {
