@@ -171,6 +171,47 @@ public final class SuggestionHelper {
         return suggest(builder, List.of("VIEWER", "CREATOR", "EDITOR", "ADMIN").stream());
     }
 
+    /**
+     * Suggests the player's own mail message IDs (most recent first, up to 20),
+     * with the sender name and subject shown as a tooltip.
+     */
+    public static CompletableFuture<Suggestions> suggestInboxMessageIds(
+            CommandContext<ServerCommandSource> ctx, SuggestionsBuilder builder) {
+        var player = ctx.getSource().getPlayer();
+        if (player == null) return builder.buildFuture();
+        var repo = MossManMod.getMailRepository();
+        if (repo == null) return builder.buildFuture();
+        String remaining = builder.getRemaining();
+        for (var msg : repo.findByRecipientId(player.getUuid(), 0, 20)) {
+            String id = String.valueOf(msg.id());
+            if (id.startsWith(remaining)) {
+                builder.suggest(id, net.minecraft.text.Text.literal(msg.senderName() + ": " + msg.subject()));
+            }
+        }
+        return builder.buildFuture();
+    }
+
+    /** Curated list of commonly used IANA timezone IDs. */
+    private static final List<String> COMMON_TIMEZONES = List.of(
+            "UTC",
+            "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles",
+            "America/Anchorage", "America/Honolulu",
+            "America/Toronto", "America/Vancouver", "America/Sao_Paulo", "America/Argentina/Buenos_Aires",
+            "Europe/London", "Europe/Paris", "Europe/Berlin", "Europe/Madrid",
+            "Europe/Amsterdam", "Europe/Rome", "Europe/Helsinki", "Europe/Moscow",
+            "Africa/Cairo", "Africa/Nairobi", "Africa/Johannesburg",
+            "Asia/Dubai", "Asia/Kolkata", "Asia/Bangkok", "Asia/Shanghai",
+            "Asia/Tokyo", "Asia/Seoul", "Asia/Singapore",
+            "Australia/Sydney", "Australia/Perth",
+            "Pacific/Auckland", "Pacific/Honolulu"
+    );
+
+    /** Suggests a curated list of common IANA timezone IDs. */
+    public static CompletableFuture<Suggestions> suggestCommonTimezones(
+            CommandContext<ServerCommandSource> ctx, SuggestionsBuilder builder) {
+        return suggest(builder, COMMON_TIMEZONES.stream());
+    }
+
     /** Filters {@code candidates} by the remaining input and adds matching entries to the builder. */
     private static CompletableFuture<Suggestions> suggest(SuggestionsBuilder builder, Stream<String> candidates) {
         String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
@@ -314,6 +355,20 @@ public final class SuggestionHelper {
         RELATIONSHIP_TYPE_FIELDS = Collections.unmodifiableMap(m);
     }
 
+    private static Map<String, List<String>> buildTicketFilterFields(Project project) {
+        Map<String, List<String>> m = new LinkedHashMap<>();
+        m.put("title", null);
+        m.put("priority", List.of("LOW", "MEDIUM", "HIGH", "URGENT"));
+        if (project != null) {
+            m.put("status", project.getStatuses().stream().map(s -> s.name()).toList());
+            m.put("type", project.getTicketTypes().stream().map(t -> t.name()).toList());
+        } else {
+            m.put("status", null);
+            m.put("type", null);
+        }
+        return m;
+    }
+
     private static Map<String, List<String>> buildTicketFields(Project project) {
         Map<String, List<String>> m = new LinkedHashMap<>();
         m.put("title", null);
@@ -327,6 +382,25 @@ public final class SuggestionHelper {
             m.put("type", null);
         }
         return m;
+    }
+
+    /**
+     * Returns a filter suggestion provider for {@code ticket list}; reads project via {@code prefixArgName}.
+     * Suggests SNBT with filter keys: title, priority, status, type (label omitted as it requires list syntax).
+     */
+    public static SuggestionProvider<ServerCommandSource> suggestTicketFilter(String prefixArgName) {
+        return (ctx, builder) -> {
+            try {
+                String prefix = StringArgumentType.getString(ctx, prefixArgName);
+                var project = MossManMod.getProjectRepository().findAll(0, Integer.MAX_VALUE).stream()
+                        .filter(p -> p.getTicketPrefix().equalsIgnoreCase(prefix))
+                        .findFirst().orElse(null);
+                return generatePatchSuggestions(builder, parsePatchCursor(builder.getRemaining()),
+                        buildTicketFilterFields(project));
+            } catch (Exception e) {
+                return builder.buildFuture();
+            }
+        };
     }
 
     /** Returns a patch suggestion provider for {@code ticket update}; reads project via {@code keyArgName}. */

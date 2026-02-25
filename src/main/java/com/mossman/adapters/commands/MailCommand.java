@@ -6,6 +6,7 @@ import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.tree.LiteralCommandNode;
+import com.mossman.adapters.tui.SuggestionHelper;
 import com.mossman.adapters.tui.TuiHelper;
 import com.mossman.domain.entities.MailMessage;
 import net.minecraft.command.argument.GameProfileArgumentType;
@@ -30,6 +31,7 @@ public class MailCommand {
                                 .executes(MailCommand::listMail)))
                 .then(CommandManager.literal("read")
                         .then(CommandManager.argument("id", LongArgumentType.longArg(1))
+                                .suggests(SuggestionHelper::suggestInboxMessageIds)
                                 .executes(MailCommand::readMail)))
                 .then(CommandManager.literal("send")
                         .then(CommandManager.argument("player", GameProfileArgumentType.gameProfile())

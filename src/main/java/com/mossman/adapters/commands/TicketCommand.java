@@ -37,6 +37,7 @@ public class TicketCommand {
                                 .then(CommandManager.argument("page", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1))
                                         .executes(TicketCommand::listTickets))
                                 .then(CommandManager.argument("filter", NbtCompoundArgumentType.nbtCompound())
+                                        .suggests(SuggestionHelper.suggestTicketFilter("prefix"))
                                         .executes(TicketCommand::listTicketsFiltered)
                                         .then(CommandManager.argument("page", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1))
                                                 .executes(TicketCommand::listTicketsFiltered)))))

@@ -4,6 +4,7 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.tree.LiteralCommandNode;
+import com.mossman.adapters.tui.SuggestionHelper;
 import com.mossman.adapters.tui.TuiHelper;
 import com.mossman.domain.entities.PlayerSettings;
 import net.minecraft.server.command.CommandManager;
@@ -23,7 +24,8 @@ public class SettingsCommand {
         var settingsNode = CommandManager.literal("settings")
                 .executes(SettingsCommand::viewSettings)
                 .then(CommandManager.literal("timezone")
-                        .then(CommandManager.argument("zone", StringArgumentType.word())
+                        .then(CommandManager.argument("zone", StringArgumentType.greedyString())
+                                .suggests(SuggestionHelper::suggestCommonTimezones)
                                 .executes(SettingsCommand::setTimezone)))
                 .build();
 
